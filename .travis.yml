@@ -1,0 +1,22 @@
+language: erlang
+
+notifications:
+  email: false
+  
+otp_release:
+  - 19.0
+
+before_install:
+- echo "overwritten before_install"
+
+install:
+- echo "overwritten install step"
+
+script:
+- ./rebar3 alias ci
+
+after_success:
+- echo "overwritten after_success step"
+
+after_failure:
+- echo "overwritten after_failure step"

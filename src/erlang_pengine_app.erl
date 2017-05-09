@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %% @author Kim Hammar <kimham@kth.se>
-%% @copyright (C) 2016, Kim Hammar
+%% @copyright (C) 2017, Kim Hammar
 %% @doc erlang_pengine public API
 %% @end
 %%%-------------------------------------------------------------------
