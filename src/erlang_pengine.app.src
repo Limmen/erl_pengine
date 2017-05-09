@@ -1,0 +1,16 @@
+{application, erlang_pengine,
+ [{description, "An OTP application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, { erlang_pengine_app, []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {maintainers, ["Kim Hammar"]},
+  {licenses, []},
+  {links, []}
+ ]}.
