@@ -1,11 +1,12 @@
 {application, erlang_pengine,
- [{description, "An OTP application"},
+ [{description, "Erlang Pengine"},
   {vsn, "0.1.0"},
   {registered, []},
-  {mod, { erlang_pengine_app, []}},
+  {mod, { erlang_pengine, []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    lager
    ]},
   {env,[]},
   {modules, []},

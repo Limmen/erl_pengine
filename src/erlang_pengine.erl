@@ -4,13 +4,13 @@
 %% @doc erlang_pengine top-level API to start/stop the application
 %% @end
 %%%-------------------------------------------------------------------
--module(erlang_pengine_app).
+-module(erlang_pengine).
 -author('Kim Hammar <kimham@kth.se>').
 
 -behaviour(application).
 
 %% API
--export([create_pengine/3]).
+-export([create_pengine/3, start/0]).
 
 %% Application callbacks
 -export([start/2, stop/1]).
@@ -23,14 +23,9 @@
 %% Creates pengine with given options
 -spec create_pengine(string(), atom(), pengine:pengine_create_options()) -> atom().
 create_pengine(Server, CallBackModule, CreateOptions) ->
-    start(),
+    %%start(),
     lager:info("creating pengine, server: ~p, callbackmod: ~p, createOpts: ~p", [Server, CallBackModule, CreateOptions]),
-    Child = #{id => 'pengine',
-              start => {'pengine', start_link, [Server, CallBackModule, CreateOptions]},
-              restart => permanent,
-              shutdown => 5000,
-              type => worker},
-    supervisor:start_child(erlang_pengine_sup, Child).
+    supervisor:start_child(erlang_pengine_sup, [[Server, CallBackModule, CreateOptions]]).    
 
 %%====================================================================
 %% Application callbacks
@@ -62,6 +57,5 @@ stop(_State) ->
 %% Auxilliary function that starts necessary dependency-applications
 -spec start()-> {atom(), atom()}.
 start()->
-    lager:start(),
-    application:start(erlang_pengine),
+    application:ensure_all_started(erlang_pengine),
     {ok, started}.

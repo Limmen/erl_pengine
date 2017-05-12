@@ -2,13 +2,28 @@
 
 ## Description
 
-An OTP application
+**ErlangPengine**:
+
+Erlang client to prolog pengine server.
+For more information about the pengine project see the following links.
+
+* [http://pengines.swi-prolog.org/docs/documentation.html](http://pengines.swi-prolog.org/docs/documentation.html)
+* [http://www.swi-prolog.org/pldoc/doc_for?object=section(%27packages/pengines.html%27)](http://www.swi-prolog.org/pldoc/doc_for?object=section(%27packages/pengines.html%27))
 
 ## Installation
 
-TODO
+```bash
+# build
+$ ./rebar3 compile
 
+```
 ## Usage
+
+```erlang
+erlang_pengine:create_pengine("Serv", test, #{}).
+```
+
+## Project commands
 ```bash
 # build
 $ ./rebar3 compile
@@ -38,10 +53,6 @@ $ ./rebar3 auto
 $ ./rebar3 run
 
 ```
-
-## Built with
-
-TODO
  
 ## Copyright and license
 

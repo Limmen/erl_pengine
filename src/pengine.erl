@@ -10,7 +10,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, id/0, ask/2]).
+-export([start_link/1, id/0, ask/2]).
 -export_type([pengine_create_options/0]).
 
 %% gen_server callbacks
@@ -56,9 +56,10 @@
 
 %% @doc
 %% Starts the server
--spec start_link() -> {ok, pid()}.
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+-spec start_link(list()) -> {ok, pid()}.
+start_link(Args) ->
+    lager:info("Starting pengine"),
+    gen_server:start_link({local, ?SERVER}, ?MODULE, Args, []).
 
 %% @doc
 %% Returns the id of the pengine (a string). 
@@ -117,6 +118,7 @@ destroy() ->
 %% @doc
 %% Initializes the server
 init([Server, CallBackModule, PengineOptions]) ->
+    lager:info("Initializing pengine"),
     State = #state{server = Server, callback_module = CallBackModule},
     State1 = maps:fold(fun(K,V, S) -> OldMap = S#state.pengine_create_options, S#state{pengine_create_options = OldMap#{K => V}} end, State, PengineOptions),
     {ok, State1}.
