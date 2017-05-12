@@ -53,7 +53,11 @@ $ ./rebar3 auto
 $ ./rebar3 run
 
 ```
- 
+
+## Author & Maintainer
+
+Kim Hammar <kimham@kth.se>
+
 ## Copyright and license
 
 [LICENSE](LICENSE.md)

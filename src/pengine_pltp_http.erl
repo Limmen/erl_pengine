@@ -1,14 +1,15 @@
 %%%-------------------------------------------------------------------
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
-%% @doc pengine_http library.
+%% @doc pengine_plptp_http library.
+%% Erlang implementation of Prolog Transport Protocol (PLTP) over HTTP.
 %% @end
 %%%-------------------------------------------------------------------
--module(pengine_http).
+-module(pengine_pltp_http).
 -author('Kim Hammar <kimham@kth.se>').
 
 %% API
--export([]).
+-export([ping/1, pull_response/0, send/1, create/1]).
 
 %%====================================================================
 %% API functions
@@ -23,7 +24,7 @@ ping(Interval) ->
 %% Process the reply to a pull_response.  If the last answer was
 %% final, this question will be asked to a death pengine.  We do not
 %% consider this an error.
-pull_respons() ->
+pull_response() ->
     ok.
 
 %% @doc
