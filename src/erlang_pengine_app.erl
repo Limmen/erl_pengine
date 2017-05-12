@@ -10,28 +10,10 @@
 -behaviour(application).
 
 %% API
--export([create_pengine/1]).
--export_type([pengine_options/0]).
+-export([create_pengine/3]).
 
 %% Application callbacks
 -export([start/2, stop/1]).
-
-%% types
-
-%% Client options for creating the pengine.
-%% server and callback_module are mandatory arguments, rest are optional.
--type pengine_options():: #{
-                       server := string(),
-                       application => string(),
-                       ask => string(),
-                       template => string(),
-                       chunk => integer(),
-                       destroy => boolean(),
-                       srctext => string(),
-                       srcurl => string(),
-                       format => string(),
-                       callback_module := atom()
-                      }.
 
 %%====================================================================
 %% API
@@ -39,12 +21,12 @@
 
 %% @doc
 %% Creates pengine with given options
--spec create_pengine(pengine_options()) -> atom().
-create_pengine(Options) ->
+-spec create_pengine(string(), atom(), pengine:pengine_create_options()) -> atom().
+create_pengine(Server, CallBackModule, CreateOptions) ->
     start(),
-    lager:info("creating pengine with arguments: ~p", [Options]),
+    lager:info("creating pengine, server: ~p, callbackmod: ~p, createOpts: ~p", [Server, CallBackModule, CreateOptions]),
     Child = #{id => 'pengine',
-              start => {'pengine', start_link, [Options]},
+              start => {'pengine', start_link, [Server, CallBackModule, CreateOptions]},
               restart => permanent,
               shutdown => 5000,
               type => worker},

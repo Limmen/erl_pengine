@@ -11,6 +11,7 @@
 
 %% API
 -export([start_link/0, id/0, ask/2]).
+-export_type([pengine_create_options/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -21,29 +22,31 @@
 
 %% types
 
-%% supported formats
--type format():: json.
-
 %% query_options to the ask() function.
 -type query_options():: #{
                      template := string(),
                      chunk := integer()
                     }.
 
+%% server and callback_module are mandatory arguments, rest are optional.
+-type pengine_create_options():: #{
+                              application => string(),
+                              ask => string(),
+                              template => string(),
+                              chunk => integer(),
+                              destroy => boolean(),
+                              format => string()
+                             }.
+
 %% records
 
 %% state of the pengine, see http://pengines.swi-prolog.org/docs/documentation.html for documentation.
 -record(state, {
           server :: string(),
-          application = "pengine_sandbox" :: string(),
-          ask :: string(),
-          template :: string(),
-          chunk = 1 :: integer(),
-          destroy = true :: boolean(),
           srctext :: string(),
           srcurl :: string(),
-          format = json :: format(),
           callback_module :: atom(),
+          pengine_create_options = #{application => "pengine_sandbox", chunk => 1, destroy => true, format => json} :: pengine_create_options(),
           id :: string()
          }).
 
@@ -78,6 +81,34 @@ id()->
 ask(Query, Options) ->
     ok.
 
+%% @doc
+%% Triggers a search for the next solution.
+next() ->
+    ok.
+
+%% @doc
+%% Stops searching for solutions. Terminates the running query gracefully.
+stop() ->
+    ok.
+
+%% @doc
+%% Inputs a term in response to a prompt from an invocation of pengine_input/2
+%% that is now waiting to receive data from the outside. 
+%% Throws an error if string cannot be parsed as a Prolog term or if object cannot be serialised into JSON.
+respond(PrologTerm) ->
+    ok.
+
+%% @doc
+%% Terminates the running query by force.
+abort() ->
+    ok.
+
+%% @doc
+%% Destroys the pengine.
+destroy() ->
+    ok.
+
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -85,10 +116,10 @@ ask(Query, Options) ->
 %% @private
 %% @doc
 %% Initializes the server
--spec init(list(erlang_pengine_app:pengine_options())) -> {ok, #state{}}.
-init([Options]) ->
-    State = maps:fold(fun(K, V, Acc) -> set_state(K, V, Acc) end, Options),
-    {ok, State}.
+init([Server, CallBackModule, PengineOptions]) ->
+    State = #state{server = Server, callback_module = CallBackModule},
+    State1 = maps:fold(fun(K,V, S) -> OldMap = S#state.pengine_create_options, S#state{pengine_create_options = OldMap#{K => V}} end, State, PengineOptions),
+    {ok, State1}.
 
 %% @private
 %% @doc
@@ -132,32 +163,3 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal functions
 %%====================================================================
 
-set_state(server, V, State) ->
-    State#state{server = V};
-
-set_state(application, V, State) ->
-    State#state{server = V};
-
-set_state(ask, V, State) ->
-    State#state{ask = V};
-
-set_state(template, V, State) ->
-    State#state{template = V};
-
-set_state(chunk, V, State) ->
-    State#state{chunk = V};
-
-set_state(destroy, V, State) ->
-    State#state{destroy = V};
-
-set_state(srctext, V, State) ->
-    State#state{srctext = V};
-
-set_state(srcurl, V, State) ->
-    State#state{srcurl = V};
-
-set_state(format, V, State) ->
-    State#state{format = V};
-
-set_state(callback_module, V, State) ->
-    State#state{callback_module = V}.
