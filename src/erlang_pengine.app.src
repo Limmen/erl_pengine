@@ -6,7 +6,9 @@
   {applications,
    [kernel,
     stdlib,
-    lager
+    lager,
+    hackney,
+    jsx
    ]},
   {env,[]},
   {modules, []},

@@ -127,7 +127,8 @@ destroy() ->
 %% Initializes the server
 init([Server, CallBackModule, PengineOptions]) ->
     lager:info("Initializing pengine"),
-    State = #state{server = Server, callback_module = CallBackModule},
+    Id = pengine_pltp_http:create(Server, CallBackModule, PengineOptions),
+    State = #state{id = Id, server = Server, callback_module = CallBackModule},
     State1 = maps:fold(fun(K,V, S) -> OldMap = S#state.pengine_create_options, S#state{pengine_create_options = OldMap#{K => V}} end, State, PengineOptions),
     {ok, State1}.
 
