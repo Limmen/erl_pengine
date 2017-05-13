@@ -2,7 +2,7 @@
 
 ## Description
 
-**ErlangPengine**:
+**ErlangPengine**
 
 Erlang client to prolog pengine server.
 For more information about the pengine project see the following links.
@@ -20,7 +20,9 @@ $ ./rebar3 compile
 ## Usage
 
 ```erlang
-erlang_pengine:create_pengine("Serv", test, #{}).
+{ok, P1} = erlang_pengine:create_pengine("http://127.0.0.1:4000/pengine", test, #{}).
+
+{ok, P2} = erlang_pengine:create_pengine("http://127.0.0.1:4000/pengine", test, #{}).
 ```
 
 ## Project commands

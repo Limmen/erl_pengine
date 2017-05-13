@@ -21,9 +21,10 @@
 
 %% @doc
 %% Creates pengine with given options
--spec create_pengine(string(), atom(), pengine:pengine_create_options()) -> atom().
+-spec create_pengine(string(), atom(), pengine:pengine_create_options()) -> 
+                            {ok, pid()} | already_present | 
+                            {already_started, pid()} | term().
 create_pengine(Server, CallBackModule, CreateOptions) ->
-    %%start(),
     lager:info("creating pengine, server: ~p, callbackmod: ~p, createOpts: ~p", [Server, CallBackModule, CreateOptions]),
     supervisor:start_child(erlang_pengine_sup, [[Server, CallBackModule, CreateOptions]]).    
 

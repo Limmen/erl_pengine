@@ -10,8 +10,8 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/1, id/0, ask/2, next/0, stop/0, respond/1, abort/0, 
-         destroy/0]).
+-export([start_link/1, id/1, ask/3, next/1, stop/1, respond/2, abort/1, 
+         destroy/1]).
 -export_type([pengine_create_options/0]).
 
 %% gen_server callbacks
@@ -60,16 +60,16 @@
 -spec start_link(list()) -> {ok, pid()}.
 start_link(Args) ->
     lager:info("starting pengine"),
-    gen_server:start_link({local, ?SERVER}, ?MODULE, Args, []).
+    gen_server:start_link(?MODULE, Args, []).
 
 %% @doc
 %% Returns the id of the pengine (a string). 
 %% Note that the pengine must have been created before this field will have a 
 %% non-null value, i.e. the oncreate handler must have been called.
--spec id() -> integer().
-id()->
+-spec id(pid()) -> integer().
+id(Pengine)->
     lager:info("querying the pengine for its id"),
-    gen_server:call(?SERVER, {id}).
+    gen_server:call(Pengine, {id}).
 
 %% @doc
 %% Runs query in search for the first solution. 
@@ -80,42 +80,42 @@ id()->
 %% A prolog variable (or a term containing problog variables) shared with the query.
 %% chunk :: integer() :
 %% The maximum number of solutions to retrieve in one chunk. 1 means no chunking (default).
--spec ask(string(), query_options()) -> atom().
-ask(Query, Options) ->
+-spec ask(pid(), string(), query_options()) -> atom().
+ask(Pengine,Query, Options) ->
     lager:info("sending a query ~p to the pengine", [Query]),
-    gen_server:call(?SERVER, {ask, Query, Options}).
+    gen_server:call(Pengine, {ask, Query, Options}).
 
 %% @doc
 %% Triggers a search for the next solution.
-next() ->
+next(Pengine) ->
     lager:info("asking the pengine for next solution"),
-    gen_server:call(?SERVER, {next}).
+    gen_server:call(Pengine, {next}).
 
 %% @doc
 %% Stops searching for solutions. Terminates the running query gracefully.
-stop() ->
+stop(Pengine) ->
     lager:info("stopping the running query"),
-    gen_server:call(?SERVER, {stop}).
+    gen_server:call(Pengine, {stop}).
 
 %% @doc
 %% Inputs a term in response to a prompt from an invocation of pengine_input/2
 %% that is now waiting to receive data from the outside. 
 %% Throws an error if string cannot be parsed as a Prolog term or if object cannot be serialised into JSON.
-respond(PrologTerm) ->
+respond(Pengine, PrologTerm) ->
     lager:info("responds to pengine_input with ~p", [PrologTerm]),
-    gen_server:call(?SERVER, {respond, PrologTerm}).
+    gen_server:call(Pengine, {respond, PrologTerm}).
 
 %% @doc
 %% Terminates the running query by force.
-abort() ->
+abort(Pengine) ->
     lager:info("aborts the running query abruptely"),
-    gen_server:call(?SERVER, {abort}).
+    gen_server:call(Pengine, {abort}).
 
 %% @doc
 %% Destroys the pengine.
-destroy() ->
+destroy(Pengine) ->
     lager:info("destroying the pengine"),
-    gen_server:call(?SERVER, {destroy}).
+    gen_server:call(Pengine, {destroy}).
 
 
 %%====================================================================

@@ -46,12 +46,11 @@ send(Event) ->
 -spec create(string(), atom(), pengine:pengine_create_options()) -> string().
 create(Server, _CallBackModule, Options) ->
     URL = list_to_binary(Server ++ "/create"),
-    lager:debug("sending create pengine request to: ~p, options: ~p", [URL, options_to_json(Options)]),
+    lager:info("sending create pengine request to: ~p, options: ~p", [URL, options_to_json(Options)]),
     case hackney:post(URL, [prolog_content_type(), json_accept_header()], options_to_json(Options), []) of
         Res = {ok, StatusCode, Headers, ClientRef} ->
-            lager:debug("received hackney response: ~p", [Res]),
             {ok, Body} = hackney:body(ClientRef),
-            lager:debug("received hackney response-body:: ~p", [Body]),
+            lager:info("received hackney response-body: ~p", [Body]),
             ok;
         {error, Reason} ->
             lager:error("create request failed, reason: ~p", [Reason])
