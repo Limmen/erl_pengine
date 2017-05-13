@@ -23,6 +23,8 @@ $ ./rebar3 compile
 {ok, P1} = erlang_pengine:create_pengine("http://127.0.0.1:4000/pengine", test, #{}).
 
 {ok, P2} = erlang_pengine:create_pengine("http://127.0.0.1:4000/pengine", test, #{}).
+
+pengine:next(P1).
 ```
 
 ## Project commands

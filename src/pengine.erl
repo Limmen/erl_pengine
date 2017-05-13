@@ -48,7 +48,8 @@
           srcurl :: string(),
           callback_module :: atom(),
           pengine_create_options = #{application => "pengine_sandbox", chunk => 1, destroy => true, format => json} :: pengine_create_options(),
-          id :: string()
+          id :: string(),
+          max_slaves :: integer()
          }).
 
 %%====================================================================
@@ -117,20 +118,21 @@ destroy(Pengine) ->
     lager:info("destroying the pengine"),
     gen_server:call(Pengine, {destroy}).
 
-
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
 
 %% @private
 %% @doc
-%% Initializes the server
+%% Initializes the server, creates the pengine.
+%%-spec init([string(), atom(), pengine_create_options()]) -> {ok, #state{}}.
+-spec init(list()) -> {ok, #state{}}.
 init([Server, CallBackModule, PengineOptions]) ->
     lager:info("Initializing pengine"),
-    Id = pengine_pltp_http:create(Server, CallBackModule, PengineOptions),
-    State = #state{id = Id, server = Server, callback_module = CallBackModule},
+    State = #state{server = Server, callback_module = CallBackModule},
     State1 = maps:fold(fun(K,V, S) -> OldMap = S#state.pengine_create_options, S#state{pengine_create_options = OldMap#{K => V}} end, State, PengineOptions),
-    {ok, State1}.
+    {Id, MaxSlaves} = pengine_pltp_http:create(Server, CallBackModule, State1#state.pengine_create_options),
+    {ok, State1#state{id = Id, max_slaves = MaxSlaves}}.
 
 %% @private
 %% @doc
@@ -197,4 +199,5 @@ code_change(_OldVsn, State, _Extra) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
 
