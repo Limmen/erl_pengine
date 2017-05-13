@@ -10,7 +10,8 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/1, id/0, ask/2]).
+-export([start_link/1, id/0, ask/2, next/0, stop/0, respond/1, abort/0, 
+         destroy/0]).
 -export_type([pengine_create_options/0]).
 
 %% gen_server callbacks
@@ -28,7 +29,7 @@
                      chunk := integer()
                     }.
 
-%% server and callback_module are mandatory arguments, rest are optional.
+%% Server and callback_module are mandatory arguments, rest are optional.
 -type pengine_create_options():: #{
                               application => string(),
                               ask => string(),
@@ -58,7 +59,7 @@
 %% Starts the server
 -spec start_link(list()) -> {ok, pid()}.
 start_link(Args) ->
-    lager:info("Starting pengine"),
+    lager:info("starting pengine"),
     gen_server:start_link({local, ?SERVER}, ?MODULE, Args, []).
 
 %% @doc
@@ -67,7 +68,8 @@ start_link(Args) ->
 %% non-null value, i.e. the oncreate handler must have been called.
 -spec id() -> integer().
 id()->
-    ok.
+    lager:info("querying the pengine for its id"),
+    gen_server:call(?SERVER, {id}).
 
 %% @doc
 %% Runs query in search for the first solution. 
@@ -80,34 +82,40 @@ id()->
 %% The maximum number of solutions to retrieve in one chunk. 1 means no chunking (default).
 -spec ask(string(), query_options()) -> atom().
 ask(Query, Options) ->
-    ok.
+    lager:info("sending a query ~p to the pengine", [Query]),
+    gen_server:call(?SERVER, {ask, Query, Options}).
 
 %% @doc
 %% Triggers a search for the next solution.
 next() ->
-    ok.
+    lager:info("asking the pengine for next solution"),
+    gen_server:call(?SERVER, {next}).
 
 %% @doc
 %% Stops searching for solutions. Terminates the running query gracefully.
 stop() ->
-    ok.
+    lager:info("stopping the running query"),
+    gen_server:call(?SERVER, {stop}).
 
 %% @doc
 %% Inputs a term in response to a prompt from an invocation of pengine_input/2
 %% that is now waiting to receive data from the outside. 
 %% Throws an error if string cannot be parsed as a Prolog term or if object cannot be serialised into JSON.
 respond(PrologTerm) ->
-    ok.
+    lager:info("responds to pengine_input with ~p", [PrologTerm]),
+    gen_server:call(?SERVER, {respond, PrologTerm}).
 
 %% @doc
 %% Terminates the running query by force.
 abort() ->
-    ok.
+    lager:info("aborts the running query abruptely"),
+    gen_server:call(?SERVER, {abort}).
 
 %% @doc
 %% Destroys the pengine.
 destroy() ->
-    ok.
+    lager:info("destroying the pengine"),
+    gen_server:call(?SERVER, {destroy}).
 
 
 %%====================================================================
@@ -127,7 +135,31 @@ init([Server, CallBackModule, PengineOptions]) ->
 %% @doc
 %% Handling call messages
 -spec handle_call(term(), term(), #state{}) -> {reply, ok, #state{}}.
-handle_call(_Request, _From, State) ->
+handle_call({id}, _From, State) ->
+    Reply = ok,
+    {reply, Reply, State};
+
+handle_call({ask, _Query, _Options}, _From, State) ->
+    Reply = ok,
+    {reply, Reply, State};
+
+handle_call({next}, _From, State) ->
+    Reply = ok,
+    {reply, Reply, State};
+
+handle_call({stop}, _From, State) ->
+    Reply = ok,
+    {reply, Reply, State};
+
+handle_call({respond, _PrologTerm}, _From, State) ->
+    Reply = ok,
+    {reply, Reply, State};
+
+handle_call({abort}, _From, State) ->
+    Reply = ok,
+    {reply, Reply, State};
+
+handle_call({destroy}, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 
