@@ -29,7 +29,7 @@
                      chunk := integer()
                     }.
 
-%% Server and callback_module are mandatory arguments, rest are optional.
+%% pengine create options
 -type pengine_create_options():: #{
                               application => string(),
                               ask => string(),
@@ -67,7 +67,7 @@ start_link(Args) ->
 %% Returns the id of the pengine (a string). 
 %% Note that the pengine must have been created before this field will have a 
 %% non-null value, i.e. the oncreate handler must have been called.
--spec id(pid()) -> integer().
+-spec id(pid()) -> string().
 id(Pengine)->
     lager:info("querying the pengine for its id"),
     gen_server:call(Pengine, {id}).
