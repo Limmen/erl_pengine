@@ -20,9 +20,11 @@ $ ./rebar3 compile
 ## Usage
 
 ```erlang
-{ok, P1} = erlang_pengine:create_pengine("http://127.0.0.1:4000/pengine", test, #{}).
+{ok, P1, Id1} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", test_callbackmod, #{}).
 
-{ok, P2} = erlang_pengine:create_pengine("http://127.0.0.1:4000/pengine", test, #{}).
+{ok, P2, Id2} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", test_callbackmod, #{}).
+
+Pengines = pengine_master:list_pengines().
 
 pengine:next(P1).
 ```

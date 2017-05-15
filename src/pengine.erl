@@ -11,8 +11,7 @@
 
 %% API
 -export([start_link/1, id/1, ask/3, next/1, stop/1, respond/2, abort/1, 
-         destroy/1]).
--export_type([pengine_create_options/0]).
+         destroy/2, call_callback/3]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -29,27 +28,13 @@
                      chunk := integer()
                     }.
 
-%% pengine create options
--type pengine_create_options():: #{
-                              application => string(),
-                              ask => string(),
-                              template => string(),
-                              chunk => integer(),
-                              destroy => boolean(),
-                              format => string()
-                             }.
-
 %% records
 
 %% state of the pengine, see http://pengines.swi-prolog.org/docs/documentation.html for documentation.
 -record(state, {
           server :: string(),
-          srctext :: string(),
-          srcurl :: string(),
           callback_module :: atom(),
-          pengine_create_options = #{application => "pengine_sandbox", chunk => 1, destroy => true, format => json} :: pengine_create_options(),
-          id :: string(),
-          max_slaves :: integer()
+          id :: string()
          }).
 
 %%====================================================================
@@ -62,6 +47,17 @@
 start_link(Args) ->
     lager:info("starting pengine"),
     gen_server:start_link(?MODULE, Args, []).
+
+%% @doc
+%% call function of callback-module
+call_callback(CallBackMod, CallBackFunc, Args)->
+    try apply(CallBackMod, CallBackFunc, Args) of
+        Result ->
+            Result
+    catch
+        _:_ ->
+            no_match
+    end.
 
 %% @doc
 %% Returns the id of the pengine (a string). 
@@ -114,9 +110,10 @@ abort(Pengine) ->
 
 %% @doc
 %% Destroys the pengine.
-destroy(Pengine) ->
+destroy(Pengine, Reason) ->
     lager:info("destroying the pengine"),
-    gen_server:call(Pengine, {destroy}).
+    gen_server:call(Pengine, {destroy, Reason}),
+    gen_server:stop(Pengine).
 
 %%====================================================================
 %% gen_server callbacks
@@ -127,12 +124,10 @@ destroy(Pengine) ->
 %% Initializes the server, creates the pengine.
 %%-spec init([string(), atom(), pengine_create_options()]) -> {ok, #state{}}.
 -spec init(list()) -> {ok, #state{}}.
-init([Server, CallBackModule, PengineOptions]) ->
+init([Id, Server, CallBackModule]) ->
     lager:info("Initializing pengine"),
-    State = #state{server = Server, callback_module = CallBackModule},
-    State1 = maps:fold(fun(K,V, S) -> OldMap = S#state.pengine_create_options, S#state{pengine_create_options = OldMap#{K => V}} end, State, PengineOptions),
-    {Id, MaxSlaves} = pengine_pltp_http:create(Server, CallBackModule, State1#state.pengine_create_options),
-    {ok, State1#state{id = Id, max_slaves = MaxSlaves}}.
+    syn:register(Id, self()),
+    {ok, #state{id = Id, server = Server, callback_module = CallBackModule}}.
 
 %% @private
 %% @doc
@@ -162,7 +157,7 @@ handle_call({abort}, _From, State) ->
     Reply = ok,
     {reply, Reply, State};
 
-handle_call({destroy}, _From, State) ->
+handle_call({destroy, _Reason}, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 

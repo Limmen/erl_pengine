@@ -10,7 +10,7 @@
 -behaviour(application).
 
 %% API
--export([create_pengine/3, start/0]).
+-export([start/0]).
 
 %% Application callbacks
 -export([start/2, stop/1]).
@@ -18,15 +18,6 @@
 %%====================================================================
 %% API
 %%====================================================================
-
-%% @doc
-%% Creates pengine with given options
--spec create_pengine(string(), atom(), pengine:pengine_create_options()) -> 
-                            {ok, pid()} | already_present | 
-                            {already_started, pid()} | term().
-create_pengine(Server, CallBackModule, CreateOptions) ->
-    lager:info("creating pengine, server: ~p, callbackmod: ~p, createOpts: ~p", [Server, CallBackModule, CreateOptions]),
-    supervisor:start_child(erlang_pengine_sup, [[Server, CallBackModule, CreateOptions]]).    
 
 %%====================================================================
 %% Application callbacks
@@ -39,6 +30,7 @@ create_pengine(Server, CallBackModule, CreateOptions) ->
                    {ok, pid()}.
 start(_StartType, _StartArgs) ->
     lager:info("starting erlang_pengine application"),
+    syn:init(),
     erlang_pengine_sup:start_link().
 
 %% @private

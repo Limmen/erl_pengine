@@ -9,7 +9,7 @@
 -author('Kim Hammar <kimham@kth.se>').
 
 %% API
--export([ping/1, pull_response/0, send/1, create/3]).
+-export([ping/1, pull_response/0, create/2, send/3, send/4]).
 
 %%====================================================================
 %% API functions
@@ -37,21 +37,34 @@ pull_response() ->
 %% the format and id as URL parameters and the content as a POST body.
 %% Future versions might use the HTTP Accept header intead of format
 %% and add the id to the URL, i.e., using /pengine/send/ID
-send(Event) ->
-    ok.
+send(Id, Server, Event) ->
+    send(Id, Server, Event, json).
+
+send(Id, Server, Event, Format) ->
+    URL = list_to_binary(Server ++ "/" ++ Event) ++ "/send?format=" ++ Format ++ "&id" ++ Id,
+    Data = Event ++ ".\n",
+    lager:info("sending event ~p to pengine: ~p", [Event, Id]),
+    case hackney:post(URL, [prolog_content_type()], Data, []) of
+        {ok, _StatusCode, _Headers, ClientRef} ->
+            {ok, Body} = hackney:body(ClientRef),
+            lager:info("Send received: ~p ", [Body]),
+            ok;
+        {error, Reason} ->
+            lager:error("send request failed, reason: ~p", [Reason]),
+            ok
+    end.
 
 %% @doc
 %% Creates the pengine with the given options
 %% returns id (string) of the created pengine
--spec create(string(), atom(), pengine:pengine_create_options()) -> {string(), integer()}.
-create(Server, CallBackModule, Options) ->
+-spec create(string(), pengine:pengine_create_options()) -> {string(), integer()}.
+create(Server, Options) ->
     URL = list_to_binary(Server ++ "/create"),
     lager:info("sending create pengine request to: ~p, options: ~p", [URL, options_to_json(Options)]),
     case hackney:post(URL, [json_content_type(), json_accept_header()], options_to_json(Options), []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
             #{<<"event">> := _, <<"id">> := Id, <<"slave_limit">> := SlaveLimit} = jsx:decode(Body, [return_maps]),
-            call_callback(CallBackModule, oncreate, [Id]),
             {Id, SlaveLimit};
         {error, Reason} ->
             lager:error("create request failed, reason: ~p", [Reason]),
@@ -89,15 +102,3 @@ json_accept_header()->
 -spec options_to_json(map()) -> binary().
 options_to_json(Options)->
     jsx:encode(Options).
-
-%% @doc
-%% @private
-%% call function of callback-module
-call_callback(CallBackMod, CallBackFunc, Args)->
-    try apply(CallBackMod, CallBackFunc, Args) of
-        Result ->
-            Result
-    catch
-        _:_ ->
-            no_match
-    end.

@@ -43,7 +43,7 @@ onfailure(Id) ->
 %% The expression Id points to the id of the pengine returning the error.
 -spec onerror(integer(), list()) -> ok.
 onerror(Id, Data) ->
-    io:format("Pengine-error, Data: ~p Id: p ~n", [Data, Id]),
+    io:format("Pengine-error, Data: ~p Id: ~p ~n", [Data, Id]),
     ok.
 
 %% Called when the pengine evaluates the pengine_input/2 predicate. 

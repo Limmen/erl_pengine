@@ -8,12 +8,21 @@
     stdlib,
     lager,
     hackney,
-    jsx
+    jsx,
+    syn
    ]},
   {env,[]},
-  {modules, []},
+  {modules, [
+             erlang_pengine,
+             erlang_pengine_sup,
+             pengine,
+             pengine_master,
+             pengine_pltp_http,
+             pengine_sup
+            ]},
 
   {maintainers, ["Kim Hammar"]},
-  {licenses, []},
-  {links, []}
+  {licenses, ["MIT"]},
+  {links, []},
+  {build_tools, ["rebar3"]}
  ]}.
