@@ -1,7 +1,8 @@
 %%%-------------------------------------------------------------------
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
-%% @doc erlang_pengine top level supervisor.
+%% @doc pengine_sup, supervises pengine-processes that are created 
+%% dynamically.
 %% @end
 %%%-------------------------------------------------------------------
 -module(pengine_sup).

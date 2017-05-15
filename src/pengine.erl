@@ -1,7 +1,7 @@
 %%%-------------------------------------------------------------------
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
-%% @doc erlang_pengine_server server
+%% @doc pengine gen_server. Controls a pengine slave
 %% @end
 %%%-------------------------------------------------------------------
 -module(pengine).

@@ -1,7 +1,8 @@
 %%%-------------------------------------------------------------------
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
-%% @doc pengine_master server
+%% @doc pengine_master gen_server. Master process that controls and
+%% manages the erlang-processes that are connected to pengine-slaves
 %% @end
 %%%-------------------------------------------------------------------
 -module(pengine_master).

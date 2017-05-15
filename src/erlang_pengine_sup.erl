@@ -2,6 +2,7 @@
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
 %% @doc erlang_pengine_sup top level supervisor.
+%% Supervises pengine_master and pengine_sup.
 %% @end
 %%%-------------------------------------------------------------------
 -module(erlang_pengine_sup).

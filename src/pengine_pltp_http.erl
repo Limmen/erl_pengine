@@ -2,7 +2,8 @@
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
 %% @doc pengine_plptp_http library.
-%% Erlang implementation of Prolog Transport Protocol (PLTP) over HTTP.
+%% Erlang implementation of Prolog Transport Protocol (PLTP) 
+%% over HTTP.
 %% @end
 %%%-------------------------------------------------------------------
 -module(pengine_pltp_http).
