@@ -1,7 +1,10 @@
 %%%-------------------------------------------------------------------
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
-%% @doc table_mngr server
+%% @doc table_mngr server. Only purpose to maintain the ETS-table with 
+%% all the active slave-pengines and add fault-tolerance in case 
+%% the pengine_master dies. This process have very low-chance of crashing
+%% due to its limited purpose.
 %% @end
 %%%-------------------------------------------------------------------
 -module(table_mngr).
@@ -32,6 +35,9 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+%% @doc
+%% handover store to pengine_master
+-spec handover() -> ok.
 handover() ->
     gen_server:cast(?MODULE, {handover}).
 
@@ -114,6 +120,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% @private
 %% @doc
 %% Wait for master pengine to be restored
+-spec wait_for_master() -> pid().
 wait_for_master() -> 
     case whereis(pengine_master) of
         undefined -> 

@@ -59,6 +59,7 @@ create_pengine(Server, CallBackModule, CreateOptions) ->
 
 %% @doc
 %% Returns list of active pengines
+-spec list_pengines() -> list().
 list_pengines()->
     gen_server:call(?SERVER, {list_pengines}).
 
@@ -151,14 +152,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% @private
 %% @doc
 %% update the state of active pengines, check if any pengines are destroyed/killed and if so remove them.
+-spec cleanup_pengines(ets:tid()) -> true.
 cleanup_pengines(TableId)->
     Pengines = lists:filter(fun({Id}) -> undefined =/= syn:find_by_key(Id) end, ets:tab2list(TableId)),
     ets:delete_all_objects(TableId),
     ets:insert(TableId, Pengines).
-
-%%        ets:foldl(fun(Id, _A) -> case undefined =/= syn:find_by_key(Id) of
-%%        true -> ets:delete(TableId, Id);
-%%        false  -> ok
-%%end
-%%                end, [], TableId).
-
