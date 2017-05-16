@@ -159,6 +159,10 @@ handle_call({abort}, _From, State) ->
 
 handle_call({destroy, _Reason}, _From, State) ->
     Reply = ok,
+    {reply, Reply, State};
+
+handle_call(_Request, _From, State) ->
+    Reply = ok,
     {reply, Reply, State}.
 
 %% @private

@@ -56,11 +56,18 @@ init([]) ->
     PengineSup = #{id => 'pengine_sup',
                    start => {'pengine_sup', start_link, []},
                    restart => permanent,
-                   shutdown => 5000,
-                   type => worker,
+                   shutdown => infinity,
+                   type => supervisor,
                    modules => ['pengine_sup']},
 
-    {ok, {SupFlags, [Master, PengineSup]} }.
+    TableMngr = #{id => 'table_mngr',
+                  start => {'table_mngr', start_link, []},
+                  restart => permanent,
+                   shutdown => 5000,
+                   type => worker,
+                  modules => ['table_mngr']},
+
+    {ok, {SupFlags, [Master, PengineSup, TableMngr]} }.
 
 %%====================================================================
 %% Internal functions
