@@ -80,9 +80,8 @@ init([]) ->
 -spec handle_call(term(), term(), #state{}) -> {reply, ok, #state{}}.
 handle_call({create, Server, CallBackModule, CreateOptions}, _From, State) ->
     cleanup_pengines(State#state.table_id),
-    Opts = #{application => "pengine_sandbox", chunk => 1, destroy => true, format => json}, %%Default Options
-    Opts1 = maps:fold(fun(K,V,S) -> S#{K => V}  end, Opts, CreateOptions),
-    {Id, MaxSlaves} = pengine_pltp_http:create(Server, Opts1),
+    Opts = maps:fold(fun(K,V,S) -> S#{K => V}  end, default_create_options(), CreateOptions),
+    {Id, MaxSlaves} = pengine_pltp_http:create(Server, Opts),
     {size, Size} = lists:keyfind(size, 1, ets:info(State#state.table_id)),
     lager:info("Attempting to create pengine, max_slaves: ~p , active pengines: ~p", [MaxSlaves, Size]),
     if 
@@ -157,3 +156,9 @@ cleanup_pengines(TableId)->
     Pengines = lists:filter(fun({Id}) -> undefined =/= syn:find_by_key(Id) end, ets:tab2list(TableId)),
     ets:delete_all_objects(TableId),
     ets:insert(TableId, Pengines).
+
+%% @private
+%% @doc
+%% returns default options for creating a new pengine slave
+default_create_options()->
+    #{application => "pengine_sandbox", chunk => 1, destroy => true, format => json}.
