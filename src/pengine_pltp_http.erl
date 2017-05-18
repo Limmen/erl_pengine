@@ -10,7 +10,7 @@
 -author('Kim Hammar <kimham@kth.se>').
 
 %% API
--export([ping/1, pull_response/0, create/2, send/3, send/4]).
+-export([ping/1, pull_response/0, create/2, send/3, send/4, abort/3]).
 
 %%====================================================================
 %% API functions
@@ -71,6 +71,23 @@ create(Server, Options) ->
             {ok, jsx:decode(Body, [return_maps])};
         {error, Reason} ->
             lager:error("create request failed, reason: ~p", [Reason]),
+            {error, Reason}
+    end.
+
+%% @doc
+%% Aborts pengine with the given id
+-spec abort(binary(), string(), string()) -> {ok, map()} |
+                                             {error, any()}.
+abort(Id, Server, Format) ->
+    URL = list_to_binary(Server ++ "/abort"),
+    Options = #{id => Id,  format => Format},
+    lager:info("sending abort pengine request to: ~p, options: ~p", [URL, options_to_json(Options)]),
+    case hackney:post(URL, [json_content_type(), json_accept_header()], options_to_json(Options), []) of
+        {ok, _StatusCode, _Headers, ClientRef} ->
+            {ok, Body} = hackney:body(ClientRef),
+            {ok, jsx:decode(Body, [return_maps])};
+        {error, Reason} ->
+            lager:error("abort request failed, reason: ~p", [Reason]),
             {error, Reason}
     end.
 

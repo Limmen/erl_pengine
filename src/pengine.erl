@@ -137,23 +137,35 @@ handle_call({id}, _From, State) ->
     Reply = ok,
     {reply, Reply, State};
 
-handle_call({ask, _Query, _Options}, _From, State) ->
+handle_call({ask, Query, Options}, _From, State) ->
+    Send = "ask((" ++ Query ++ "), " ++ options_to_list(Options) ++ ")",
+    {ok, Res} = pengine_pltp_http:send(State#state.id, State#state.server, Send),
+    process_response(Res, {State#state.callback_module}),
     Reply = ok,
     {reply, Reply, State};
 
 handle_call({next}, _From, State) ->
+    {ok, Res} = pengine_pltp_http:send(State#state.id, State#state.server, "next"),
+    process_response(Res, {State#state.callback_module}),
     Reply = ok,
     {reply, Reply, State};
 
 handle_call({stop}, _From, State) ->
+    {ok, Res} = pengine_pltp_http:send(State#state.id, State#state.server, "stop"),
+    process_response(Res, {State#state.callback_module}),
     Reply = ok,
     {reply, Reply, State};
 
-handle_call({respond, _PrologTerm}, _From, State) ->
+handle_call({respond, PrologTerm}, _From, State) ->
+    Send = "input((" ++ PrologTerm ++ "))",
+    {ok, Res} = pengine_pltp_http:send(State#state.id, State#state.server, Send),
+    process_response(Res, {State#state.callback_module}),
     Reply = ok,
     {reply, Reply, State};
 
 handle_call({abort}, _From, State) ->
+    {ok, Res} = pengine_pltp_http:abort(State#state.id, State#state.server, "json"),
+    process_response(Res, {State#state.callback_module}),
     Reply = ok,
     {reply, Reply, State};
 
@@ -233,7 +245,11 @@ process_response(#{<<"event">> := <<"failure">>, <<"id">> := Id}, {CallBackModul
 process_response(#{<<"event">> := <<"prompt">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
     call_callback(CallBackModule, onprompt, [Id, Data]);
 
-process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"data">> := Data, <<"data">> := Data}, {CallBackModule})->
+process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"code">> := <<"existence_error">>, <<"data">> := Data}, {CallBackModule})->
+    call_callback(CallBackModule, onerror, [Id, Data]),
+    gen_server:stop(syn:find_by_key(Id));
+
+process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
     call_callback(CallBackModule, onerror, [Id, Data]);
 
 process_response(#{<<"event">> := <<"success">>, <<"id">> := Id, <<"data">> := Data, <<"more">> := More}, {CallBackModule})->
@@ -255,5 +271,19 @@ process_response(#{<<"event">> := <<"abort">>, <<"id">> := Id}, {CallBackModule}
 process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id}, {CallBackModule})->
     call_callback(CallBackModule, ondestroy, [Id]);
 
-process_response(#{<<"event">> := <<"died">>}, _)->
-    ok.
+process_response(#{<<"event">> := <<"died">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+    call_callback(CallBackModule, onerror, [Id, Data]),
+    gen_server:stop(syn:find_by_key(Id)).
+
+
+%% @doc
+%% @private
+%% Turn an object into a Prolog option list. 
+%% The option values must be valid Prolog syntax.
+options_to_list(Options)->
+    Opts = maps:fold(
+             fun(K,V,Opts = [$[]) -> Opts ++ atom_to_list(K) ++ "(" ++ V ++ ")";
+                (K,V,Opts) -> Opts ++ "," ++ atom_to_list(K) ++ "(" ++ V ++ ")"
+             end, "[", Options),
+    Opts ++ "]".
+
