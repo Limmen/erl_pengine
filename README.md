@@ -27,6 +27,31 @@ $ ./rebar3 compile
 Pengines = pengine_master:list_pengines().
 
 pengine:next(P1).
+
+5> {ok, _StatusCode, _Headers, ClientRef} = hackney:post(<<"http://127.0.0.1:4000/pengine/send?format=json&id=38612376351347808823784683757103067622">>, [{<<"Content-Type">>, <<"application/x-prolog; charset=utf-8">>}], <<"destroy.\n">>, []).
+{ok,200,
+    [{<<"Date">>,<<"Thu, 18 May 2017 09:43:45 GMT">>},
+     {<<"Connection">>,<<"Keep-Alive">>},
+     {<<"Cache-Control">>,
+      <<"no-cache, no-store, must-revalidate">>},
+     {<<"Pragma">>,<<"no-cache">>},
+     {<<"Expires">>,<<"0">>},
+     {<<"Content-Type">>,<<"application/json; charset=UTF-8">>},
+     {<<"Content-Length">>,<<"66">>}],
+    #Ref<0.0.1.7561>}
+6> hackney:body(ClientRef).
+{ok,<<"{\"event\":\"destroy\", \"id\":\"38612376351347808823784683757103067622\"}">>}
+7>
+
+```
+
+```bash
+
+curl --data "event=destroy.\n" -H "Content-Type: application/x-prolog" "http://localhost:4000/pengine/send?format=json&id='159039462391028399231340666254676513087'"
+
+curl --data "event=destroy.\n" -H "Content-Type: application/x-prolog" "http://localhost:4000/pengine/send?format=json&id=26520944056946901811031529588524459285"
+
+
 ```
 
 ## Project commands

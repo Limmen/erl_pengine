@@ -11,7 +11,7 @@
 
 %% API
 -export([start_link/1, id/1, ask/3, next/1, stop/1, respond/2, abort/1, 
-         destroy/2, call_callback/3]).
+         destroy/1, call_callback/3]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -110,9 +110,9 @@ abort(Pengine) ->
 
 %% @doc
 %% Destroys the pengine.
-destroy(Pengine, Reason) ->
+destroy(Pengine) ->
     lager:info("destroying the pengine"),
-    gen_server:call(Pengine, {destroy, Reason}),
+    gen_server:call(Pengine, {destroy}),
     gen_server:stop(Pengine).
 
 %%====================================================================
@@ -157,7 +157,9 @@ handle_call({abort}, _From, State) ->
     Reply = ok,
     {reply, Reply, State};
 
-handle_call({destroy, _Reason}, _From, State) ->
+handle_call({destroy}, _From, State) ->
+    pengine_pltp_http:send(State#state.id, State#state.server, "destroy"),
+    call_callback(State#state.callback_module, ondestroy, [State#state.id]),
     Reply = ok,
     {reply, Reply, State};
 

@@ -48,10 +48,10 @@ init([]) ->
 
     Pengine = #{id => 'pengine',
                 start => {'pengine', start_link, []},
-               restart => permanent,
-               shutdown => 5000,
-               type => worker,
-               modules => ['pengine']},
+                restart => transient,
+                shutdown => 5000,
+                type => worker,
+                modules => ['pengine']},
 
     {ok, {SupFlags, [Pengine]} }.
 

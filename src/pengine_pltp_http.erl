@@ -38,12 +38,14 @@ pull_response() ->
 %% the format and id as URL parameters and the content as a POST body.
 %% Future versions might use the HTTP Accept header intead of format
 %% and add the id to the URL, i.e., using /pengine/send/ID
+-spec send(string(), string(), string()) -> ok.
 send(Id, Server, Event) ->
-    send(Id, Server, Event, json).
+    send(Id, Server, Event, "json").
 
+-spec send(string(), string(), string(), string()) -> ok.
 send(Id, Server, Event, Format) ->
-    URL = list_to_binary(Server ++ "/" ++ Event) ++ "/send?format=" ++ Format ++ "&id" ++ Id,
-    Data = Event ++ ".\n",
+    URL = list_to_binary(Server ++ "/send?format=" ++ Format ++ "&id=" ++ Id),
+    Data = list_to_binary(Event ++ ".\n"),
     lager:info("sending event ~p to pengine: ~p", [Event, Id]),
     case hackney:post(URL, [prolog_content_type()], Data, []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
@@ -66,7 +68,7 @@ create(Server, Options) ->
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
             #{<<"event">> := _, <<"id">> := Id, <<"slave_limit">> := SlaveLimit} = jsx:decode(Body, [return_maps]),
-            {Id, SlaveLimit};
+            {binary_to_list(Id), SlaveLimit};
         {error, Reason} ->
             lager:error("create request failed, reason: ~p", [Reason]),
             exit(Reason)
