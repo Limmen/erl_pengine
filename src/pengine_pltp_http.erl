@@ -18,7 +18,7 @@
 
 %% @doc
 %% Ping the status of the pengine.
-ping(Interval) ->
+ping(_Interval) ->
     ok.
 
 %% @doc
@@ -42,7 +42,8 @@ pull_response() ->
 send(Id, Server, Event) ->
     send(Id, Server, Event, "json").
 
--spec send(string(), string(), string(), string()) -> ok.
+-spec send(string(), string(), string(), string()) -> {ok, map()} |
+                                                      {error, any()}.
 send(Id, Server, Event, Format) ->
     URL = list_to_binary(Server ++ "/send?format=" ++ Format ++ "&id=" ++ Id),
     Data = list_to_binary(Event ++ ".\n"),
@@ -50,28 +51,27 @@ send(Id, Server, Event, Format) ->
     case hackney:post(URL, [prolog_content_type()], Data, []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
-            lager:info("Send received: ~p ", [Body]),
-            ok;
+            {ok, jsx:decode(Body, [return_maps])};
         {error, Reason} ->
             lager:error("send request failed, reason: ~p", [Reason]),
-            ok
+            {error, Reason}
     end.
 
 %% @doc
 %% Creates the pengine with the given options
 %% returns id (string) of the created pengine
--spec create(string(), pengine:pengine_create_options()) -> {string(), integer()}.
+-spec create(string(), pengine:pengine_create_options()) -> {ok, map()} |
+                                                            {error, any()}.
 create(Server, Options) ->
     URL = list_to_binary(Server ++ "/create"),
     lager:info("sending create pengine request to: ~p, options: ~p", [URL, options_to_json(Options)]),
     case hackney:post(URL, [json_content_type(), json_accept_header()], options_to_json(Options), []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
-            #{<<"event">> := _, <<"id">> := Id, <<"slave_limit">> := SlaveLimit} = jsx:decode(Body, [return_maps]),
-            {binary_to_list(Id), SlaveLimit};
+            {ok, jsx:decode(Body, [return_maps])};
         {error, Reason} ->
             lager:error("create request failed, reason: ~p", [Reason]),
-            exit(Reason)
+            {error, Reason}
     end.
 
 %%====================================================================

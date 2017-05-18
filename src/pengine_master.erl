@@ -81,22 +81,9 @@ init([]) ->
 handle_call({create, Server, CallBackModule, CreateOptions}, _From, State) ->
     cleanup_pengines(State#state.table_id),
     Opts = maps:fold(fun(K,V,S) -> S#{K => V}  end, default_create_options(), CreateOptions),
-    {Id, MaxSlaves} = pengine_pltp_http:create(Server, Opts),
-    {size, Size} = lists:keyfind(size, 1, ets:info(State#state.table_id)),
-    lager:info("Attempting to create pengine, max_slaves: ~p , active pengines: ~p", [MaxSlaves, Size]),
-    if 
-        MaxSlaves > Size ->
-            {ok, Pid} = supervisor:start_child(pengine_sup, [[Id, Server, CallBackModule]]),
-            pengine:call_callback(CallBackModule, oncreate, [Id]),
-            ets:insert(State#state.table_id, {Id}),
-            {reply, {ok, Pid, Id}, State};
-        true -> 
-            lager:info("Attemt to create too many pengines. The limit is: ~p ~n", [MaxSlaves]),
-            Reason = "Attemt to create too many pengines. The limit is: " ++ [MaxSlaves] ++ "\n",
-            pengine:call_callback(CallBackModule, onerror, [Id, Reason]),
-            pengine_pltp_http:send(Id, Server, "destroy"),
-            {reply, {error, Reason}, State}
-    end;
+    {ok, Res} = pengine_pltp_http:create(Server, Opts),
+    Reply = pengine:process_response(Res, {State#state.table_id, CallBackModule, Server}),
+    {reply, Reply, State};
 
 handle_call({list_pengines}, _From, State) ->
     cleanup_pengines(State#state.table_id),

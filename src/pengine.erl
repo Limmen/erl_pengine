@@ -11,7 +11,7 @@
 
 %% API
 -export([start_link/1, id/1, ask/3, next/1, stop/1, respond/2, abort/1, 
-         destroy/1, call_callback/3]).
+         destroy/1, call_callback/3, process_response/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -34,7 +34,7 @@
 -record(state, {
           server :: string(),
           callback_module :: atom(),
-          id :: string()
+          id :: binary()
          }).
 
 %%====================================================================
@@ -63,7 +63,7 @@ call_callback(CallBackMod, CallBackFunc, Args)->
 %% Returns the id of the pengine (a string). 
 %% Note that the pengine must have been created before this field will have a 
 %% non-null value, i.e. the oncreate handler must have been called.
--spec id(pid()) -> string().
+-spec id(pid()) -> binary().
 id(Pengine)->
     lager:info("querying the pengine for its id"),
     gen_server:call(Pengine, {id}).
@@ -158,8 +158,8 @@ handle_call({abort}, _From, State) ->
     {reply, Reply, State};
 
 handle_call({destroy}, _From, State) ->
-    pengine_pltp_http:send(State#state.id, State#state.server, "destroy"),
-    call_callback(State#state.callback_module, ondestroy, [State#state.id]),
+    {ok, Res} = pengine_pltp_http:send(State#state.id, State#state.server, "destroy"),
+    process_response(Res, {State#state.callback_module}),
     Reply = ok,
     {reply, Reply, State};
 
@@ -201,4 +201,59 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal functions
 %%====================================================================
 
+%% @doc
+%% @private
+%% process response to sent request
+-spec process_response(map(), tuple()) -> tuple().
+process_response(#{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">> := SlaveLimit}, {TableId, CallBackModule, Server})->
+    {size, Size} = lists:keyfind(size, 1, ets:info(TableId)),
+    lager:info("Attempting to create pengine, max_slaves: ~p , active pengines: ~p", [SlaveLimit, Size]),
+    if 
+        SlaveLimit > Size ->
+            {ok, Pid} = supervisor:start_child(pengine_sup, [[Id, Server, CallBackModule]]),
+            call_callback(CallBackModule, oncreate, [Id]),
+            ets:insert(TableId, {Id}),
+            {ok, Pid, Id};
+        true -> 
+            lager:info("Attempt to create too many pengines. The limit is: ~p ~n", [SlaveLimit]),
+            Reason = "Attemt to create too many pengines. The limit is: " ++ [SlaveLimit] ++ "\n",
+            call_callback(CallBackModule, onerror, [Id, Reason]),
+            Res = pengine_pltp_http:send(Id, Server, "destroy"),
+            process_response(Res, {}),
+            {error, Reason}
+    end;
 
+process_response(#{<<"event">> := <<"stop">>, <<"id">> := Id}, {CallBackModule})->
+    call_callback(CallBackModule, onstop, [Id]);
+
+
+process_response(#{<<"event">> := <<"failure">>, <<"id">> := Id}, {CallBackModule})->
+    call_callback(CallBackModule, onfailure, [Id]);
+
+process_response(#{<<"event">> := <<"prompt">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+    call_callback(CallBackModule, onprompt, [Id, Data]);
+
+process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"data">> := Data, <<"data">> := Data}, {CallBackModule})->
+    call_callback(CallBackModule, onerror, [Id, Data]);
+
+process_response(#{<<"event">> := <<"success">>, <<"id">> := Id, <<"data">> := Data, <<"more">> := More}, {CallBackModule})->
+    call_callback(CallBackModule, onsuccess, [Id, Data, More]);
+
+process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := Data, <<"data">> := Data}, {CallBackModule})->
+    call_callback(CallBackModule, onoutput, [Id, Data]);
+
+process_response(#{<<"event">> := <<"debug">>}, _)->
+    ok;
+
+process_response(#{<<"event">> := <<"ping">>}, _)->
+    ok;
+
+process_response(#{<<"event">> := <<"abort">>, <<"id">> := Id}, {CallBackModule})->
+    call_callback(CallBackModule, onabort, [Id]);
+
+
+process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id}, {CallBackModule})->
+    call_callback(CallBackModule, ondestroy, [Id]);
+
+process_response(#{<<"event">> := <<"died">>}, _)->
+    ok.
