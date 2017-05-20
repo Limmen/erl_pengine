@@ -64,7 +64,7 @@ pull_response(Id, Server, Format) ->
 %% the format and id as URL parameters and the content as a POST body.
 %% Future versions might use the HTTP Accept header intead of format
 %% and add the id to the URL, i.e., using /pengine/send/ID
--spec send(string(), string(), string(), string()) -> {ok, map()} |
+-spec send(binary(), string(), string(), string()) -> {ok, map()} |
                                                       {error, any()}.
 send(Id, Server, Event, Format) ->
     URL = list_to_binary(Server ++ "/send?format=" ++ Format ++ "&id=" ++ Id),

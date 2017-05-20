@@ -14,5 +14,9 @@
 
 %% state of the master process
 -record(master_state, {
-          table_id :: ets:tid()
+          table_id :: ets:tid() | undefined
          }).
+
+
+%% state of the table mgnr
+-record(table_mngr_state, {table_id :: ets:tid() | undefined}).

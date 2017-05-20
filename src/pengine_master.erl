@@ -122,9 +122,11 @@ handle_info(_Info, State) ->
 %% Cleanup function, kill all pengines before termination.
 -spec terminate(normal | shutdown | {shutdown,term()}, #master_state{}) -> ok.
 terminate(Reason, State) ->
+    lager:info("Pengine master terminating, reason: ~p", [Reason]),
     cleanup_pengines(State#master_state.table_id),
-    lists:map(fun({Id}) -> pengine:destroy(syn:find_by_key(Id), Reason) end, ets:tab2list(State#master_state.table_id)),
-    ets:delete_all_objects(State#master_state.table_id).
+    lists:map(fun({Id}) -> pengine:destroy(syn:find_by_key(Id)) end, ets:tab2list(State#master_state.table_id)),
+    ets:delete_all_objects(State#master_state.table_id),
+    ok.
 
 %% @private
 %% @doc

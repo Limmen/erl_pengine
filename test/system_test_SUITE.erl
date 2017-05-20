@@ -4,7 +4,7 @@
 %% @doc test suite for module system_test
 %% @end
 %%%-------------------------------------------------------------------
--module(system_test_tests).
+-module(system_test_SUITE).
 -author('Kim Hammar <kimham@kth.se>').
 
 

@@ -215,7 +215,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% @doc
 %% @private
 %% process response to sent request
--spec process_response(map(), tuple()) -> tuple().
+-spec process_response(map(), tuple()) -> {ok, any()}|
+                                          {error, any()}.
 process_response(#{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">> := SlaveLimit}, {TableId, CallBackModule, Server})->
     {size, Size} = lists:keyfind(size, 1, ets:info(TableId)),
     lager:info("Attempting to create pengine, max_slaves: ~p , active pengines: ~p", [SlaveLimit, Size]),
@@ -224,55 +225,64 @@ process_response(#{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">
             {ok, Pid} = supervisor:start_child(pengine_sup, [[Id, Server, CallBackModule]]),
             call_callback(CallBackModule, oncreate, [Id]),
             ets:insert(TableId, {Id}),
-            {ok, Pid, Id};
+            {ok, {Pid, Id}};
         true -> 
             lager:info("Attempt to create too many pengines. The limit is: ~p ~n", [SlaveLimit]),
             Reason = "Attemt to create too many pengines. The limit is: " ++ [SlaveLimit] ++ "\n",
             call_callback(CallBackModule, onerror, [Id, Reason]),
-            Res = pengine_pltp_http:send(Id, Server, "destroy", "json"),
-            process_response(Res, {}),
+            {ok, Res} = pengine_pltp_http:send(Id, Server, "destroy", "json"),
+            process_response(Res, {CallBackModule}),
             {error, Reason}
     end;
 
 process_response(#{<<"event">> := <<"stop">>, <<"id">> := Id}, {CallBackModule})->
-    call_callback(CallBackModule, onstop, [Id]);
+    call_callback(CallBackModule, onstop, [Id]),
+    {ok, {}};
 
 
 process_response(#{<<"event">> := <<"failure">>, <<"id">> := Id}, {CallBackModule})->
-    call_callback(CallBackModule, onfailure, [Id]);
+    call_callback(CallBackModule, onfailure, [Id]),
+    {ok, {}};
 
 process_response(#{<<"event">> := <<"prompt">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
-    call_callback(CallBackModule, onprompt, [Id, Data]);
+    call_callback(CallBackModule, onprompt, [Id, Data]),
+    {ok, {}};
 
 process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"code">> := <<"existence_error">>, <<"data">> := Data}, {CallBackModule})->
     call_callback(CallBackModule, onerror, [Id, Data]),
-    gen_server:stop(syn:find_by_key(Id));
+    gen_server:stop(syn:find_by_key(Id)),
+    {ok, {}};
 
 process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
-    call_callback(CallBackModule, onerror, [Id, Data]);
+    call_callback(CallBackModule, onerror, [Id, Data]),
+    {ok, {}};
 
 process_response(#{<<"event">> := <<"success">>, <<"id">> := Id, <<"data">> := Data, <<"more">> := More}, {CallBackModule})->
-    call_callback(CallBackModule, onsuccess, [Id, Data, More]);
+    call_callback(CallBackModule, onsuccess, [Id, Data, More]),
+    {ok, {}};
 
 process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
-    call_callback(CallBackModule, onoutput, [Id, Data]);
+    call_callback(CallBackModule, onoutput, [Id, Data]),
+    {ok, {}};
 
 process_response(#{<<"event">> := <<"debug">>}, _)->
-    ok;
+    {ok, {}};
 
 process_response(#{<<"event">> := <<"ping">>}, _)->
-    ok;
+    {ok, {}};
 
 process_response(#{<<"event">> := <<"abort">>, <<"id">> := Id}, {CallBackModule})->
-    call_callback(CallBackModule, onabort, [Id]);
-
+    call_callback(CallBackModule, onabort, [Id]),
+    {ok, {}};
 
 process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id}, {CallBackModule})->
-    call_callback(CallBackModule, ondestroy, [Id]);
+    call_callback(CallBackModule, ondestroy, [Id]),
+    {ok, {}};
 
 process_response(#{<<"event">> := <<"died">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
     call_callback(CallBackModule, onerror, [Id, Data]),
-    gen_server:stop(syn:find_by_key(Id)).
+    gen_server:stop(syn:find_by_key(Id)),
+    {ok, {}}.
 
 
 %% @doc
