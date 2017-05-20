@@ -10,7 +10,7 @@
 -author('Kim Hammar <kimham@kth.se>').
 
 %% API
--export([ping/1, pull_response/0, create/2, send/3, send/4, abort/3]).
+-export([ping/4, pull_response/3, create/2, send/4, abort/3]).
 
 %%====================================================================
 %% API functions
@@ -18,15 +18,41 @@
 
 %% @doc
 %% Ping the status of the pengine.
-ping(_Interval) ->
-    ok.
+%% If Interval < 0, send a single ping.
+%% If Interval > 0, set/change periodic ping event, if 0, clear periodic interval
+-spec ping(binary(), string(), string(), integer()) -> {ok, map()} |
+                                                       {error, any()}.
+ping(Id, Server, Format, _Interval) ->
+    URL = list_to_binary(Server ++ "/ping"),
+    Options = #{id => Id,  format => Format},
+    lager:info("sending ping to: ~p, options: ~p", [URL, options_to_json(Options)]),
+    case hackney:get(URL, [json_content_type(), json_accept_header()], options_to_json(Options), []) of
+        {ok, _StatusCode, _Headers, ClientRef} ->
+            {ok, Body} = hackney:body(ClientRef),
+            {ok, jsx:decode(Body, [return_maps])};
+        {error, Reason} ->
+            lager:error("ping request failed, reason: ~p", [Reason]),
+            {error, Reason}
+    end.
 
 %% @doc
 %% Process the reply to a pull_response.  If the last answer was
 %% final, this question will be asked to a death pengine.  We do not
 %% consider this an error.
-pull_response() ->
-    ok.
+-spec pull_response(binary(), string(), string()) -> {ok, map()} |
+                                                     {error, any()}.
+pull_response(Id, Server, Format) ->
+    URL = list_to_binary(Server ++ "/pull_response"),
+    Options = #{id => Id,  format => Format},
+    lager:info("sending pull_response to: ~p, options: ~p", [URL, options_to_json(Options)]),
+    case hackney:get(URL, [json_content_type(), json_accept_header()], options_to_json(Options), []) of
+        {ok, _StatusCode, _Headers, ClientRef} ->
+            {ok, Body} = hackney:body(ClientRef),
+            {ok, jsx:decode(Body, [return_maps])};
+        {error, Reason} ->
+            lager:error("pull_response request failed, reason: ~p", [Reason]),
+            {error, Reason}
+    end.
 
 %% @doc
 %% Invoke /pengine/send.  This method takes three parameters: the
@@ -38,10 +64,6 @@ pull_response() ->
 %% the format and id as URL parameters and the content as a POST body.
 %% Future versions might use the HTTP Accept header intead of format
 %% and add the id to the URL, i.e., using /pengine/send/ID
--spec send(string(), string(), string()) -> ok.
-send(Id, Server, Event) ->
-    send(Id, Server, Event, "json").
-
 -spec send(string(), string(), string(), string()) -> {ok, map()} |
                                                       {error, any()}.
 send(Id, Server, Event, Format) ->
@@ -82,7 +104,7 @@ abort(Id, Server, Format) ->
     URL = list_to_binary(Server ++ "/abort"),
     Options = #{id => Id,  format => Format},
     lager:info("sending abort pengine request to: ~p, options: ~p", [URL, options_to_json(Options)]),
-    case hackney:post(URL, [json_content_type(), json_accept_header()], options_to_json(Options), []) of
+    case hackney:get(URL, [json_content_type(), json_accept_header()], options_to_json(Options), []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
             {ok, jsx:decode(Body, [return_maps])};

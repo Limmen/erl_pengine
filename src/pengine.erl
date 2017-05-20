@@ -17,6 +17,11 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
+%% exports just for tests
+-ifdef(TEST).
+-export([options_to_list/1]).
+-endif.
+
 %% macros
 -define(SERVER, ?MODULE).
 
@@ -278,8 +283,9 @@ process_response(#{<<"event">> := <<"died">>, <<"id">> := Id, <<"data">> := Data
 
 %% @doc
 %% @private
-%% Turn an object into a Prolog option list. 
+%% Turn a erlang map into a Prolog option list. 
 %% The option values must be valid Prolog syntax.
+-spec options_to_list(map()) -> string().
 options_to_list(Options)->
     Opts = maps:fold(
              fun(K,V,Opts = [$[]) -> Opts ++ atom_to_list(K) ++ "(" ++ V ++ ")";
