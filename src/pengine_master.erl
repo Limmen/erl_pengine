@@ -10,6 +10,9 @@
 
 -behaviour(gen_server).
 
+%% includes
+-include("records.hrl").
+
 %% API
 -export([start_link/0, create_pengine/3, list_pengines/0]).
 -export_type([pengine_create_options/0]).
@@ -37,11 +40,6 @@
                               destroy => boolean(),
                               format => string()
                              }.
-
-%% records
--record(state, {
-          table_id :: ets:tid()
-         }).
 
 %%====================================================================
 %% API functions
@@ -75,24 +73,24 @@ list_pengines()->
 %% @private
 %% @doc
 %% Initializes the server
--spec init(list()) -> {ok, #state{}}.
+-spec init(list()) -> {ok, #master_state{}}.
 init([]) ->
-    {ok, #state{}}.
+    {ok, #master_state{}}.
 
 %% @private
 %% @doc
 %% Handling call messages
--spec handle_call(term(), term(), #state{}) -> {reply, ok, #state{}}.
+-spec handle_call(term(), term(), #master_state{}) -> {reply, ok, #master_state{}}.
 handle_call({create, Server, CallBackModule, CreateOptions}, _From, State) ->
-    cleanup_pengines(State#state.table_id),
+    cleanup_pengines(State#master_state.table_id),
     Opts = maps:fold(fun(K,V,S) -> S#{K => V}  end, default_create_options(), CreateOptions),
     {ok, Res} = pengine_pltp_http:create(Server, Opts),
-    Reply = pengine:process_response(Res, {State#state.table_id, CallBackModule, Server}),
+    Reply = pengine:process_response(Res, {State#master_state.table_id, CallBackModule, Server}),
     {reply, Reply, State};
 
 handle_call({list_pengines}, _From, State) ->
-    cleanup_pengines(State#state.table_id),
-    ResultList = lists:foldl(fun({Id}, A) -> [{syn:find_by_key(Id), Id}|A] end, [], ets:tab2list(State#state.table_id)),
+    cleanup_pengines(State#master_state.table_id),
+    ResultList = lists:foldl(fun({Id}, A) -> [{syn:find_by_key(Id), Id}|A] end, [], ets:tab2list(State#master_state.table_id)),
     {reply, ResultList, State};
 
 handle_call(_Request, _From, State) ->
@@ -102,18 +100,18 @@ handle_call(_Request, _From, State) ->
 %% @private
 %% @doc
 %% Handling cast messages
--spec handle_cast(term(), #state{}) -> {noreply, #state{}}.
+-spec handle_cast(term(), #master_state{}) -> {noreply, #master_state{}}.
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %% @private
 %% @doc
 %% Handling all non call/cast messages
--spec handle_info(timeout | term(), #state{}) -> {noreply, #state{}}.
+-spec handle_info(timeout | term(), #master_state{}) -> {noreply, #master_state{}}.
 handle_info({'ETS-TRANSFER', TableId, Pid, _Data}, State) ->
     lager:info("pengine master recieved slave-pengine state from ~p, tableId: ~p", [Pid, TableId]),
     lager:info("Actice slave-pengines: ~p", [ets:tab2list(TableId)]),
-    {noreply, State#state{table_id=TableId}};
+    {noreply, State#master_state{table_id=TableId}};
 
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -122,16 +120,16 @@ handle_info(_Info, State) ->
 %% @private
 %% @doc
 %% Cleanup function, kill all pengines before termination.
--spec terminate(normal | shutdown | {shutdown,term()}, #state{}) -> ok.
+-spec terminate(normal | shutdown | {shutdown,term()}, #master_state{}) -> ok.
 terminate(Reason, State) ->
-    cleanup_pengines(State#state.table_id),
-    lists:map(fun({Id}) -> pengine:destroy(syn:find_by_key(Id), Reason) end, ets:tab2list(State#state.table_id)),
-    ets:delete_all_objects(State#state.table_id).
+    cleanup_pengines(State#master_state.table_id),
+    lists:map(fun({Id}) -> pengine:destroy(syn:find_by_key(Id), Reason) end, ets:tab2list(State#master_state.table_id)),
+    ets:delete_all_objects(State#master_state.table_id).
 
 %% @private
 %% @doc
 %% Convert process state when code is changed
--spec code_change(term | {down, term()}, #state{}, term()) -> {ok, #state{}}.
+-spec code_change(term | {down, term()}, #master_state{}, term()) -> {ok, #master_state{}}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
