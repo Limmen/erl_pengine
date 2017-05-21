@@ -20,6 +20,7 @@
 %%===================================================================
 
 init_per_suite(_Config) ->
+    os:cmd("prolog -s server.pl -g 'server(4000)'"),
     ok.
 
 end_per_suite(_Config) ->

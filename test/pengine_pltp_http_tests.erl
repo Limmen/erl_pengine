@@ -30,7 +30,7 @@ create_test_()->
                      end,
                      [
                       fun()->
-                              meck:expect(hackney, post, fun(_, _, _, _) -> 
+                              meck:expect(hackney, post, fun(<<"127.0.0.1:4000/pengine/create">>, _, _, _) -> 
                                                                  {ok, 200, [], ref1} 
                                                          end),
                               Res = <<"{\n  \"event\":\"create\",\n  \"id\":\"e8d94208-168e-42c2-8666-f938c9a5f388\",\n  \"slave_limit\":3\n}">>,
@@ -43,7 +43,7 @@ create_test_()->
                                               <<"id">> := <<"e8d94208-168e-42c2-8666-f938c9a5f388">>,
                                               <<"slave_limit">> := 3
                                              }},
-                                           pengine_pltp_http:create("127.0.0.1/pengine", #{
+                                           pengine_pltp_http:create("127.0.0.1:4000/pengine", #{
                                                                       application => "pengine_sandbox",
                                                                       chunk => 1, 
                                                                       destroy => true, 
@@ -66,7 +66,20 @@ ping_test_()->
                    end,
                    [
                     fun()->
-                            ok
+                            meck:expect(hackney, get, fun(<<"127.0.0.1:4000/pengine/ping?id=38612376351347808823784683757103067622&format=json">>, _, _, _) -> 
+                                                              {ok, 200, [], ref1} 
+                                                      end),
+                            meck:expect(hackney, body, fun(ref1) -> 
+                                                               {ok,
+                                                                mock_ping_response()
+                                                               } end),
+                            Id = <<"38612376351347808823784683757103067622">>,
+                            ?assertMatch({ok, #{
+                                            <<"event">> := <<"ping">>,
+                                            <<"id">> := Id,
+                                            <<"data">> := _
+                                           }},
+                                         pengine_pltp_http:ping(Id, "127.0.0.1:4000/pengine", "json", 0))
                     end
                    ]
                          }
@@ -84,7 +97,20 @@ abort_test_()->
                     end,
                     [
                      fun()->
-                             ok
+                             meck:expect(hackney, get, fun(<<"127.0.0.1:4000/pengine/abort?id=38612376351347808823784683757103067622&format=json">>, _, _, _) -> 
+                                                               {ok, 200, [], ref1} 
+                                                       end),
+                             meck:expect(hackney, body, fun(ref1) -> 
+                                                                {ok,
+                                                                 mock_abort_response()
+                                                                } end),
+                             Id = <<"38612376351347808823784683757103067622">>,
+                             ?assertMatch({ok, #{
+                                             <<"event">> := <<"destroy">>,
+                                             <<"id">> := Id,
+                                             <<"data">> := _
+                                            }},
+                                          pengine_pltp_http:abort(Id, "127.0.0.1:4000/pengine", "json"))
                      end
                     ]
                   }
@@ -120,7 +146,7 @@ send_test_()->
                    end,
                    [
                     fun()->
-                            meck:expect(hackney, post, fun(_, _, _, _) -> 
+                            meck:expect(hackney, post, fun(<<"127.0.0.1:4000/pengine/send?format=json&id=38612376351347808823784683757103067622">>, _, _, _) -> 
                                                                {ok, 200, [], ref1} 
                                                        end),
                             Res = <<"{\"event\":\"destroy\", \"id\":\"38612376351347808823784683757103067622\"}">>,
@@ -134,7 +160,7 @@ send_test_()->
                                             <<"event">> := <<"destroy">>,
                                             <<"id">> := Id
                                            }},
-                                         pengine_pltp_http:send(Id, "127.0.0.1/pengine", "destroy", "json"))
+                                         pengine_pltp_http:send(Id, "127.0.0.1:4000/pengine", "destroy", "json"))
                     end
                    ]
                   }
@@ -146,3 +172,9 @@ send_test_()->
 %%===================================================================
 %% Internal functions
 %%===================================================================
+
+mock_ping_response()->
+    <<"{\n  \"data\": {\n    \"id\":11,\n    \"stacks\": {\n      \"global\": {\n\t\"allocated\":61424,\n\t\"limit\":268435456,\n\t\"name\":\"global\",\n\t\"usage\":2224\n      },\n      \"local\": {\n\t\"allocated\":28672,\n\t\"limit\":268435456,\n\t\"name\":\"local\",\n\t\"usage\":1408\n      },\n      \"total\": {\n\t\"allocated\":120808,\n\t\"limit\":805306368,\n\t\"name\":\"stacks\",\n\t\"usage\":4296\n      },\n      \"trail\": {\n\t\"allocated\":30712,\n\t\"limit\":268435456,\n\t\"name\":\"trail\",\n\t\"usage\":664\n      }\n    },\n    \"status\":\"running\",\n    \"time\": {\"cpu\":0.004206131, \"epoch\":1495369731.2359762, \"inferences\":199}\n  },\n  \"event\":\"ping\",\n  \"id\":\"38612376351347808823784683757103067622\"\n}">>.
+
+mock_abort_response()->
+    <<"{\n  \"data\": {\"event\":\"abort\", \"id\":\"38612376351347808823784683757103067622\"},\n  \"event\":\"destroy\",\n  \"id\":\"38612376351347808823784683757103067622\"\n}">>.
