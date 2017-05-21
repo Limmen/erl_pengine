@@ -255,20 +255,24 @@ process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"code">> := <<"
 
 process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
     call_callback(CallBackModule, onerror, [Id, Data]),
+
     {ok, {}};
 
 process_response(#{<<"event">> := <<"success">>, <<"id">> := Id, <<"data">> := Data, <<"more">> := More}, {CallBackModule})->
     call_callback(CallBackModule, onsuccess, [Id, Data, More]),
     {ok, {}};
 
-process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule, Server, Format})->
     call_callback(CallBackModule, onoutput, [Id, Data]),
+    Res = pengine_pltp_http:pull_response(Id, Server, Format),
+    {ok, {Res}};
+
+process_response(#{<<"event">> := <<"debug">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+    call_callback(CallBackModule, ondebug, [Id, Data]),
     {ok, {}};
 
-process_response(#{<<"event">> := <<"debug">>}, _)->
-    {ok, {}};
-
-process_response(#{<<"event">> := <<"ping">>}, _)->
+process_response(#{<<"event">> := <<"ping">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+    call_callback(CallBackModule, onping, [Id, Data]),
     {ok, {}};
 
 process_response(#{<<"event">> := <<"abort">>, <<"id">> := Id}, {CallBackModule})->
@@ -277,6 +281,7 @@ process_response(#{<<"event">> := <<"abort">>, <<"id">> := Id}, {CallBackModule}
 
 process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id}, {CallBackModule})->
     call_callback(CallBackModule, ondestroy, [Id]),
+    gen_server:stop(syn:find_by_key(Id)),
     {ok, {}};
 
 process_response(#{<<"event">> := <<"died">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->

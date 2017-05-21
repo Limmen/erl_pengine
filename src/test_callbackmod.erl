@@ -9,7 +9,7 @@
 
 %% API
 -export([oncreate/1, onsuccess/3, onfailure/1, onerror/2, onprompt/2,
-         onoutput/2, onstop/1, onabort/1, ondestroy/1]).
+         onoutput/2, onstop/1, onabort/1, ondestroy/1, onping/2, ondebug/2]).
 
 %%====================================================================
 %% API functions
@@ -26,7 +26,7 @@ oncreate(Id) ->
 %% Data points to a list of objects each representing a solution to the query.
 %% More evaluates to a boolean indicating whether more solutions may exist.
 %% Id points to the id of the pengine returning the answer.
--spec onsuccess(integer(), list(), boolean()) -> ok.
+-spec onsuccess(integer(), map(), boolean()) -> ok.
 onsuccess(Id, Data, More) ->
     io:format("Query successfully answered by pengine ~p, data: ~p, more solutions: ~p", [Id, Data, More]),
     ok.
@@ -41,7 +41,7 @@ onfailure(Id) ->
 %% Called when the pengine throws an error. 
 %% The expression Data evaluates to an error message in the form of a string. 
 %% The expression Id points to the id of the pengine returning the error.
--spec onerror(integer(), list()) -> ok.
+-spec onerror(integer(), map()) -> ok.
 onerror(Id, Data) ->
     io:format("Pengine-error, Data: ~p Id: ~p ~n", [Data, Id]),
     ok.
@@ -49,7 +49,7 @@ onerror(Id, Data) ->
 %% Called when the pengine evaluates the pengine_input/2 predicate. 
 %% The expression Data evaluates to a prompt in the form of a string or an erlang map. 
 %% The expression Id points to the id of the pengine producing the prompt.
--spec onprompt(integer(), list()) -> ok.
+-spec onprompt(integer(), map()) -> ok.
 onprompt(Id, Data)->
     io:format("Pengine ~p prompt ~p ~n", [Id, Data]),
     ok.
@@ -57,7 +57,7 @@ onprompt(Id, Data)->
 %% Called when the pengine has evaluated the built in pengine_output/1 predicate.
 %% The expression Data evaluates to a string or a erlang-map. 
 %% The expression Id points to the id of the pengine generating the output.
--spec onoutput(integer(), list()) -> ok.
+-spec onoutput(integer(), map()) -> ok.
 onoutput(Id, Data)->
     io:format("Pengine ~p output ~p  ~n", [Id, Data]),
     ok.
@@ -81,6 +81,18 @@ onabort(Id)->
 -spec ondestroy(integer()) -> ok.
 ondestroy(Id)->
     io:format("Pengine ~p destroyed ~n", [Id]),
+    ok.
+
+%% Called when the pengine received a response to a ping request
+-spec onping(integer(), map()) -> ok.
+onping(Id, Data) ->
+    io:format("Pengine ~p ping response: ~p", [Id, Data]),
+    ok.
+
+%% Called when debug information about pengine was requested.
+-spec ondebug(integer(), map()) -> ok.
+ondebug(Id, Data) ->
+    io:format("Pengine ~p ping debug info: ~p", [Id, Data]),
     ok.
 
 %%====================================================================

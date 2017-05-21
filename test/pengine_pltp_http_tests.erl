@@ -148,11 +148,10 @@ send_test_()->
                     fun()->
                             meck:expect(hackney, post, fun(<<"127.0.0.1:4000/pengine/send?format=json&id=38612376351347808823784683757103067622">>, _, _, _) -> 
                                                                {ok, 200, [], ref1} 
-                                                       end),
-                            Res = <<"{\"event\":\"destroy\", \"id\":\"38612376351347808823784683757103067622\"}">>,
+                                                       end),                            
                             meck:expect(hackney, body, fun(ref1) -> 
                                                                {ok,
-                                                                Res
+                                                                mock_destroy_response()
                                                                } end),
                             Id = <<"38612376351347808823784683757103067622">>,
                             ?assertMatch({ok, 
@@ -161,6 +160,25 @@ send_test_()->
                                             <<"id">> := Id
                                            }},
                                          pengine_pltp_http:send(Id, "127.0.0.1:4000/pengine", "destroy", "json"))
+                    end,
+                    fun()->
+                            meck:expect(hackney, post, fun(<<"127.0.0.1:4000/pengine/send?format=json&id=38612376351347808823784683757103067622">>, _, _, _) -> 
+                                                               {ok, 200, [], ref1} 
+                                                       end),                            
+                            meck:expect(hackney, body, fun(ref1) -> 
+                                                               {ok,
+                                                                mock_query_response()
+                                                               } end),
+                            Id = <<"38612376351347808823784683757103067622">>,
+                            ?assertMatch({ok, 
+                                          #{
+                                            <<"event">> := <<"success">>,
+                                            <<"id">> := Id,
+                                            <<"more">> := true,
+                                            <<"data">> := [[1]],
+                                            <<"time">> := _
+                                           }},
+                                         pengine_pltp_http:send(Id, "127.0.0.1:4000/pengine", "ask((member(X, [1,2])), [template([X])])", "json"))
                     end
                    ]
                   }
@@ -178,3 +196,9 @@ mock_ping_response()->
 
 mock_abort_response()->
     <<"{\n  \"data\": {\"event\":\"abort\", \"id\":\"38612376351347808823784683757103067622\"},\n  \"event\":\"destroy\",\n  \"id\":\"38612376351347808823784683757103067622\"\n}">>.
+
+mock_query_response()->
+    <<"{\n  \"data\": [ [1 ] ],\n  \"event\":\"success\",\n  \"id\":\"38612376351347808823784683757103067622\",\n  \"more\":true,\n  \"time\":1.7486000000000584e-5\n}">>.
+
+mock_destroy_response()->
+    <<"{\"event\":\"destroy\", \"id\":\"38612376351347808823784683757103067622\"}">>.

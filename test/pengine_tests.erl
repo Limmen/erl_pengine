@@ -51,14 +51,14 @@ handle_call_test_()->
                                    meck:expect(pengine_pltp_http, send, mock_send()),
                                    meck:expect(pengine_pltp_http, abort, mock_abort()),
                                    meck:expect(pengine_pltp_http, pull_response, mock_pull_response()),
-                                   meck:expect(syn, find_by_key, fun(_) -> self() end),
+                                   meck:expect(syn, find_by_key, fun(_) -> undefined end),
                                    ?assertMatch({reply, ok, State}, pengine:handle_call({id}, nil, State)),
                                    ?assertMatch({reply, ok, State}, pengine:handle_call({ask, "test", #{}}, nil, State)),
                                    ?assertMatch({reply, ok, State}, pengine:handle_call({next}, nil, State)),
                                    ?assertMatch({reply, ok, State}, pengine:handle_call({stop}, nil, State)),
                                    ?assertMatch({reply, ok, State}, pengine:handle_call({respond, "[]"}, nil, State)),
                                    ?assertMatch({reply, ok, State}, pengine:handle_call({abort}, nil, State)),
-                                   ?assertMatch({reply, ok, State}, pengine:handle_call({destroy}, nil, State))
+                                   ?assertExit(noproc, pengine:handle_call({destroy}, nil, State))
                            end
                           ]
                          }
