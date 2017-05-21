@@ -89,6 +89,45 @@ ping('2ab11b38-21fb-4a8b-bc2d-ca78bcc78f4f',thread{id:12,stacks:stacks{global:st
 
 curl -H "Accept: application/json" -H "Content-Type: application/json" "http://localhost:4000/pengine/ping?id=f04494dc-2ef7-4dd5-96e2-dfcb33dcdfcc"
 
+
+kim@limmen ~> curl -H "Accept: application/json" -H "Content-Type: application/json" "http://localhost:4000/pengine/ping?id=d21082f3-4b7a-4e50-81f5-5047a621f51e&format=json"
+{
+  "data": {
+    "id":10,
+    "stacks": {
+      "global": {
+	"allocated":61424,
+	"limit":268435456,
+	"name":"global",
+	"usage":2184
+      },
+      "local": {
+	"allocated":28672,
+	"limit":268435456,
+	"name":"local",
+	"usage":1408
+      },
+      "total": {
+	"allocated":120808,
+	"limit":805306368,
+	"name":"stacks",
+	"usage":4256
+      },
+      "trail": {
+	"allocated":30712,
+	"limit":268435456,
+	"name":"trail",
+	"usage":664
+      }
+    },
+    "status":"running",
+    "time": {"cpu":0.010129046, "epoch":1495361227.2084138, "inferences":197}
+  },
+  "event":"ping",
+  "id":"d21082f3-4b7a-4e50-81f5-5047a621f51e"
+}⏎                                                                                    kim@limmen ~> 
+
+
 ```
 
 ## Project commands
