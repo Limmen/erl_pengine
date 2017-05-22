@@ -110,7 +110,7 @@ handle_cast(_Msg, State) ->
 -spec handle_info(timeout | term(), #master_state{}) -> {noreply, #master_state{}}.
 handle_info({'ETS-TRANSFER', TableId, Pid, _Data}, State) ->
     lager:info("pengine master recieved slave-pengine state from ~p, tableId: ~p", [Pid, TableId]),
-    lager:info("Actice slave-pengines: ~p", [ets:tab2list(TableId)]),
+    lager:info("Active slave-pengines: ~p", [ets:tab2list(TableId)]),
     {noreply, State#master_state{table_id=TableId}};
 
 handle_info(_Info, State) ->

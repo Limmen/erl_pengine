@@ -229,64 +229,73 @@ process_response(#{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">
         true -> 
             lager:info("Attempt to create too many pengines. The limit is: ~p ~n", [SlaveLimit]),
             Reason = "Attemt to create too many pengines. The limit is: " ++ [SlaveLimit] ++ "\n",
-            call_callback(CallBackModule, onerror, [Id, Reason]),
             {ok, Res} = pengine_pltp_http:send(Id, Server, "destroy", "json"),
             process_response(Res, {CallBackModule}),
-            {error, Reason}
+            {error, {max_limit, Reason}}
     end;
 
 process_response(#{<<"event">> := <<"stop">>, <<"id">> := Id}, {CallBackModule})->
+    lager:debug("process response: stop"),
     call_callback(CallBackModule, onstop, [Id]),
     {ok, {}};
 
 
 process_response(#{<<"event">> := <<"failure">>, <<"id">> := Id}, {CallBackModule})->
+    lager:debug("process response: failure"),
     call_callback(CallBackModule, onfailure, [Id]),
     {ok, {}};
 
 process_response(#{<<"event">> := <<"prompt">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+    lager:debug("process response: prompt"),
     call_callback(CallBackModule, onprompt, [Id, Data]),
     {ok, {}};
 
 process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"code">> := <<"existence_error">>, <<"data">> := Data}, {CallBackModule})->
     call_callback(CallBackModule, onerror, [Id, Data]),
-    gen_server:stop(syn:find_by_key(Id)),
+    stop_pengine_process(Id),
     {ok, {}};
 
 process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+    lager:debug("process response: error"),
     call_callback(CallBackModule, onerror, [Id, Data]),
-
     {ok, {}};
 
 process_response(#{<<"event">> := <<"success">>, <<"id">> := Id, <<"data">> := Data, <<"more">> := More}, {CallBackModule})->
+    lager:debug("process response: success"),
     call_callback(CallBackModule, onsuccess, [Id, Data, More]),
     {ok, {}};
 
 process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule, Server, Format})->
+    lager:debug("process response: output"),
     call_callback(CallBackModule, onoutput, [Id, Data]),
     Res = pengine_pltp_http:pull_response(Id, Server, Format),
     {ok, {Res}};
 
 process_response(#{<<"event">> := <<"debug">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+    lager:debug("process response: debug"),
     call_callback(CallBackModule, ondebug, [Id, Data]),
     {ok, {}};
 
 process_response(#{<<"event">> := <<"ping">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+    lager:debug("process response: ping"),
     call_callback(CallBackModule, onping, [Id, Data]),
     {ok, {}};
 
 process_response(#{<<"event">> := <<"abort">>, <<"id">> := Id}, {CallBackModule})->
+    lager:debug("process response: abort"),
     call_callback(CallBackModule, onabort, [Id]),
     {ok, {}};
 
 process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id}, {CallBackModule})->
+    lager:debug("process response: destroy"),
     call_callback(CallBackModule, ondestroy, [Id]),
-    gen_server:stop(syn:find_by_key(Id)),
+    stop_pengine_process(Id),
     {ok, {}};
 
 process_response(#{<<"event">> := <<"died">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+    lager:debug("process response: died"),
     call_callback(CallBackModule, onerror, [Id, Data]),
-    gen_server:stop(syn:find_by_key(Id)),
+    stop_pengine_process(Id),
     {ok, {}}.
 
 
@@ -302,3 +311,15 @@ options_to_list(Options)->
              end, "[", Options),
     Opts ++ "]".
 
+%% @doc
+%% @private
+%% Stops a pengine given a id.
+-spec stop_pengine_process(binary()) -> {ok, undefined} | {ok, stopped}.
+stop_pengine_process(Id)->
+    case syn:find_by_key(Id) =:= undefined of
+        true ->
+            {ok, undefined};
+        false ->
+            gen_server:stop(syn:find_by_key(Id)),
+            {ok, stopped}
+    end.
