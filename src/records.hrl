@@ -8,7 +8,6 @@
 %% state of the pengine, see http://pengines.swi-prolog.org/docs/documentation.html for documentation.
 -record(pengine_state, {
           server :: string(),
-          callback_module :: atom(),
           id :: binary()
          }).
 

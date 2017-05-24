@@ -14,7 +14,7 @@
 -include("records.hrl").
 
 %% API
--export([start_link/0, create_pengine/3, list_pengines/0]).
+-export([start_link/0, create_pengine/2, list_pengines/0, kill_all_pengines/0]).
 -export_type([pengine_create_options/0]).
 
 %% gen_server callbacks
@@ -53,18 +53,24 @@ start_link() ->
 
 %% @doc
 %% Creates pengine with given options
--spec create_pengine(string(), atom(), pengine:pengine_create_options()) -> 
+-spec create_pengine(string(), pengine:pengine_create_options()) -> 
                             {ok, pid()} | already_present | 
                             {already_started, pid()} | term().
-create_pengine(Server, CallBackModule, CreateOptions) ->
-    lager:info("creating pengine, server: ~p, callbackmod: ~p, createOpts: ~p", [Server, CallBackModule, CreateOptions]),
-    gen_server:call(?SERVER, {create, Server, CallBackModule, CreateOptions}).
+create_pengine(Server, CreateOptions) ->
+    lager:info("creating pengine, server: ~p, createOpts: ~p", [Server, CreateOptions]),
+    gen_server:call(?SERVER, {create, Server, CreateOptions}).
 
 %% @doc
 %% Returns list of active pengines
 -spec list_pengines() -> list().
 list_pengines()->
     gen_server:call(?SERVER, {list_pengines}).
+
+%% @doc
+%% Kill all active pengines
+-spec kill_all_pengines() -> ok.
+kill_all_pengines()->
+    gen_server:call(?SERVER, {kill_all_pengines}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -81,17 +87,21 @@ init([]) ->
 %% @doc
 %% Handling call messages
 -spec handle_call(term(), term(), #master_state{}) -> {reply, ok, #master_state{}}.
-handle_call({create, Server, CallBackModule, CreateOptions}, _From, State) ->
+handle_call({create, Server, CreateOptions}, _From, State) ->
     cleanup_pengines(State#master_state.table_id),
     Opts = maps:fold(fun(K,V,S) -> S#{K => V}  end, default_create_options(), CreateOptions),
     {ok, Res} = pengine_pltp_http:create(Server, Opts),
-    Reply = pengine:process_response(Res, {State#master_state.table_id, CallBackModule, Server}),
-    {reply, Reply, State};
+    pengine:process_response(Res, State, {State#master_state.table_id, Server});
 
 handle_call({list_pengines}, _From, State) ->
     cleanup_pengines(State#master_state.table_id),
     ResultList = lists:foldl(fun({Id}, A) -> [{syn:find_by_key(Id), Id}|A] end, [], ets:tab2list(State#master_state.table_id)),
     {reply, ResultList, State};
+
+handle_call({kill_all_pengines}, _From, State) ->
+    cleanup_pengines(State#master_state.table_id),
+    kill_all_pengines(State#master_state.table_id),
+    {reply, ok, State};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -124,8 +134,7 @@ handle_info(_Info, State) ->
 terminate(Reason, State) ->
     lager:info("Pengine master terminating, reason: ~p", [Reason]),
     cleanup_pengines(State#master_state.table_id),
-    lists:map(fun({Id}) -> pengine:destroy(syn:find_by_key(Id)) end, ets:tab2list(State#master_state.table_id)),
-    ets:delete_all_objects(State#master_state.table_id),
+    kill_all_pengines(State#master_state.table_id),
     ok.
 
 %% @private
@@ -154,3 +163,20 @@ cleanup_pengines(TableId)->
 %% returns default options for creating a new pengine slave
 default_create_options()->
     #{application => "pengine_sandbox", chunk => 1, destroy => true, format => json}.
+
+%% @private
+%% @doc
+%% kill all active pengines
+-spec kill_all_pengines(ets:tid()) -> ok.
+kill_all_pengines(TableId)->
+    lists:map(fun({Id}) -> 
+                      case syn:find_by_key(Id) =:= undefined of
+                          true ->
+                              {ok, undefined};
+                          false ->
+                              gen_server:stop(syn:find_by_key(Id)),
+                              {ok, stopped}
+                      end
+              end, ets:tab2list(TableId)),
+    ets:delete_all_objects(TableId),
+    ok.

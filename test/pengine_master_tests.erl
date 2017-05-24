@@ -60,7 +60,7 @@ handle_call_test_()->
                           [
                            fun()->
                                    meck:expect(pengine_pltp_http, create, fun(_,_) -> {ok, res} end),
-                                   meck:expect(pengine, process_response, fun(_,_) -> {ok, res2} end),
+                                   meck:expect(pengine, process_response, fun(_,_,_) -> {reply, {pid, id}, state} end),
                                    meck:expect(syn, find_by_key, fun (<<"1">>) -> pid1;
                                                                      (<<"2">>) -> pid2 end),
                                    TableId = ets:new(pengines, [named_table, set, private]),
@@ -68,7 +68,7 @@ handle_call_test_()->
                                               table_id = TableId
                                              },
                                    ets:insert(TableId, [{<<"1">>}, {<<"2">>}]),
-                                   ?assertMatch({reply, {ok, res2}, State}, pengine_master:handle_call({create, "server", test, #{}}, nil, State)),
+                                   ?assertMatch({reply, {pid, id}, state}, pengine_master:handle_call({create, "server", #{}}, nil, State)),
                                    ?assertMatch({reply, [{pid2, <<"2">>}, {pid1, <<"1">>}], State}, pengine_master:handle_call({list_pengines}, nil, State))
                            end
                           ]

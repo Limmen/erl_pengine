@@ -14,7 +14,7 @@
 
 %% API
 -export([start_link/1, id/1, ask/3, next/1, stop/1, respond/2, abort/1, 
-         destroy/1, call_callback/3, process_response/2]).
+         destroy/1, process_response/3, ping/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -48,17 +48,6 @@ start_link(Args) ->
     gen_server:start_link(?MODULE, Args, []).
 
 %% @doc
-%% call function of callback-module
-call_callback(CallBackMod, CallBackFunc, Args)->
-    try apply(CallBackMod, CallBackFunc, Args) of
-        Result ->
-            Result
-    catch
-        _:_ ->
-            no_match
-    end.
-
-%% @doc
 %% Returns the id of the pengine (a string). 
 %% Note that the pengine must have been created before this field will have a 
 %% non-null value, i.e. the oncreate handler must have been called.
@@ -76,19 +65,21 @@ id(Pengine)->
 %% A prolog variable (or a term containing problog variables) shared with the query.
 %% chunk :: integer() :
 %% The maximum number of solutions to retrieve in one chunk. 1 means no chunking (default).
--spec ask(pid(), string(), query_options()) -> atom().
+-spec ask(pid(), string(), query_options()) -> any() | {pengine_destroyed, list()}.
 ask(Pengine,Query, Options) ->
     lager:info("sending a query ~p to the pengine", [Query]),
     gen_server:call(Pengine, {ask, Query, Options}).
 
 %% @doc
 %% Triggers a search for the next solution.
+-spec next(pid()) -> any() | {pengine_destroyed, list()}.
 next(Pengine) ->
     lager:info("asking the pengine for next solution"),
     gen_server:call(Pengine, {next}).
 
 %% @doc
 %% Stops searching for solutions. Terminates the running query gracefully.
+-spec stop(pid()) -> any() | {pengine_destroyed, list()}.
 stop(Pengine) ->
     lager:info("stopping the running query"),
     gen_server:call(Pengine, {stop}).
@@ -97,22 +88,29 @@ stop(Pengine) ->
 %% Inputs a term in response to a prompt from an invocation of pengine_input/2
 %% that is now waiting to receive data from the outside. 
 %% Throws an error if string cannot be parsed as a Prolog term or if object cannot be serialised into JSON.
+-spec respond(pid(), list()) -> any() | {pengine_destroyed, list()}.
 respond(Pengine, PrologTerm) ->
     lager:info("responds to pengine_input with ~p", [PrologTerm]),
     gen_server:call(Pengine, {respond, PrologTerm}).
 
 %% @doc
 %% Terminates the running query by force.
+-spec abort(pid()) -> any() | {pengine_destroyed, list()}.
 abort(Pengine) ->
     lager:info("aborts the running query abruptely"),
     gen_server:call(Pengine, {abort}).
 
 %% @doc
 %% Destroys the pengine.
+-spec destroy(pid()) -> {pengine_destroyed, list()}.
 destroy(Pengine) ->
     lager:info("destroying the pengine"),
-    gen_server:call(Pengine, {destroy}),
-    gen_server:stop(Pengine).
+    gen_server:call(Pengine, {destroy}).
+
+-spec ping(pid(), integer()) -> map().
+ping(Pengine, Interval) ->
+    lager:info("pinging the pengine"),
+    gen_server:call(Pengine, {ping, Interval}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -123,10 +121,10 @@ destroy(Pengine) ->
 %% Initializes the server, creates the pengine.
 %%-spec init([string(), atom(), pengine_create_options()]) -> {ok, #pengine_state{}}.
 -spec init(list()) -> {ok, #pengine_state{}}.
-init([Id, Server, CallBackModule]) ->
+init([Id, Server]) ->
     lager:info("Initializing pengine"),
     syn:register(Id, self()),
-    {ok, #pengine_state{id = Id, server = Server, callback_module = CallBackModule}}.
+    {ok, #pengine_state{id = Id, server = Server}}.
 
 %% @private
 %% @doc
@@ -139,40 +137,32 @@ handle_call({id}, _From, State) ->
 handle_call({ask, Query, Options}, _From, State) ->
     Send = "ask((" ++ Query ++ "), " ++ options_to_list(Options) ++ ")",
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, Send, "json"),
-    process_response(Res, {State#pengine_state.callback_module}),
-    Reply = ok,
-    {reply, Reply, State};
+    process_response(Res, State, {});
 
 handle_call({next}, _From, State) ->
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "next", "json"),
-    process_response(Res, {State#pengine_state.callback_module}),
-    Reply = ok,
-    {reply, Reply, State};
+    process_response(Res, State, {});
 
 handle_call({stop}, _From, State) ->
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "stop", "json"),
-    process_response(Res, {State#pengine_state.callback_module}),
-    Reply = ok,
-    {reply, Reply, State};
+    process_response(Res, State, {});
 
 handle_call({respond, PrologTerm}, _From, State) ->
     Send = "input((" ++ PrologTerm ++ "))",
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, Send, "json"),
-    process_response(Res, {State#pengine_state.callback_module}),
-    Reply = ok,
-    {reply, Reply, State};
+    process_response(Res, State, {});
 
 handle_call({abort}, _From, State) ->
     {ok, Res} = pengine_pltp_http:abort(State#pengine_state.id, State#pengine_state.server, "json"),
-    process_response(Res, {State#pengine_state.callback_module}),
-    Reply = ok,
-    {reply, Reply, State};
+    process_response(Res, State, {});
 
 handle_call({destroy}, _From, State) ->
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "destroy", "json"),
-    process_response(Res, {State#pengine_state.callback_module}),
-    Reply = ok,
-    {reply, Reply, State};
+    process_response(Res, State, {});
+
+handle_call({ping, Interval}, _From, State) ->
+    {ok, Res} = pengine_pltp_http:ping(State#pengine_state.id, State#pengine_state.server, "json", Interval),
+    process_response(Res, State, {});
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -215,88 +205,79 @@ code_change(_OldVsn, State, _Extra) ->
 %% @doc
 %% @private
 %% process response to sent request
--spec process_response(map(), tuple()) -> {ok, any()}|
-                                          {error, any()}.
-process_response(#{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">> := SlaveLimit}, {TableId, CallBackModule, Server})->
+-spec process_response(map(), #pengine_state{}, tuple()) -> {reply, any(), #pengine_state{}}|
+                                                            {stop, any(), {pengine_destroyed, any()},#pengine_state{}}.
+process_response(#{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">> := SlaveLimit}, State, {TableId, Server})->
     {size, Size} = lists:keyfind(size, 1, ets:info(TableId)),
     lager:info("Attempting to create pengine, max_slaves: ~p , active pengines: ~p", [SlaveLimit, Size]),
     if 
         SlaveLimit > Size ->
-            {ok, Pid} = supervisor:start_child(pengine_sup, [[Id, Server, CallBackModule]]),
-            call_callback(CallBackModule, oncreate, [Id]),
+            {ok, Pid} = supervisor:start_child(pengine_sup, [[Id, Server]]),
             ets:insert(TableId, {Id}),
-            {ok, {Pid, Id}};
+            Reply = {ok, {Pid, Id}},
+            {reply, Reply, State};
         true -> 
             lager:info("Attempt to create too many pengines. The limit is: ~p ~n", [SlaveLimit]),
             Reason = "Attemt to create too many pengines. The limit is: " ++ [SlaveLimit] ++ "\n",
             {ok, Res} = pengine_pltp_http:send(Id, Server, "destroy", "json"),
-            process_response(Res, {CallBackModule}),
-            {error, {max_limit, Reason}}
+            process_response(Res, State, {}),
+            Reply = {error, {max_limit, Reason}},
+            {reply, Reply, State}
     end;
 
-process_response(#{<<"event">> := <<"stop">>, <<"id">> := Id}, {CallBackModule})->
+process_response(#{<<"event">> := <<"stop">>, <<"id">> := Id}, State, _)->
     lager:debug("process response: stop"),
-    call_callback(CallBackModule, onstop, [Id]),
-    {ok, {}};
+    Reply = {stopped, Id},
+    {reply, Reply, State};
 
-
-process_response(#{<<"event">> := <<"failure">>, <<"id">> := Id}, {CallBackModule})->
+process_response(#{<<"event">> := <<"failure">>, <<"id">> := Id}, State, _)->
     lager:debug("process response: failure"),
-    call_callback(CallBackModule, onfailure, [Id]),
-    {ok, {}};
+    Reply = {failure, Id},
+    {reply, Reply, State};
 
-process_response(#{<<"event">> := <<"prompt">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+process_response(#{<<"event">> := <<"prompt">>, <<"id">> := Id, <<"data">> := Data}, State, _)->
     lager:debug("process response: prompt"),
-    call_callback(CallBackModule, onprompt, [Id, Data]),
-    {ok, {}};
+    Reply = {prompt, Id, Data},
+    {reply, Reply, State};
 
-process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"code">> := <<"existence_error">>, <<"data">> := Data}, {CallBackModule})->
-    call_callback(CallBackModule, onerror, [Id, Data]),
-    stop_pengine_process(Id),
-    {ok, {}};
+process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"code">> := <<"existence_error">>, <<"data">> := Data}, State, _)->
+    Reply = {error, Id, Data},
+    {stop, Reply, {pengine_existence_error, Reply},State};
 
-process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"data">> := Data}, State, _)->
     lager:debug("process response: error"),
-    call_callback(CallBackModule, onerror, [Id, Data]),
-    {ok, {}};
+    Reply = {error, Id, Data},
+    {reply, Reply, State};
 
-process_response(#{<<"event">> := <<"success">>, <<"id">> := Id, <<"data">> := Data, <<"more">> := More}, {CallBackModule})->
+process_response(#{<<"event">> := <<"success">>, <<"id">> := Id, <<"data">> := Data, <<"more">> := More}, State, _)->
     lager:debug("process response: success"),
-    call_callback(CallBackModule, onsuccess, [Id, Data, More]),
-    {ok, {}};
+    Reply = {success, Id, Data, More},
+    {reply, Reply, State};
 
-process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule, Server, Format})->
+process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := _Data}, State, {Server, Format})->
     lager:debug("process response: output"),
-    call_callback(CallBackModule, onoutput, [Id, Data]),
     Res = pengine_pltp_http:pull_response(Id, Server, Format),
-    {ok, {Res}};
+    process_response(Res, State, {Server, Format});
 
-process_response(#{<<"event">> := <<"debug">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
-    lager:debug("process response: debug"),
-    call_callback(CallBackModule, ondebug, [Id, Data]),
-    {ok, {}};
-
-process_response(#{<<"event">> := <<"ping">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+process_response(#{<<"event">> := <<"ping">>, <<"id">> := Id, <<"data">> := Data}, State, _)->
     lager:debug("process response: ping"),
-    call_callback(CallBackModule, onping, [Id, Data]),
-    {ok, {}};
+    Reply = {ping_response, Id, Data},
+    {reply, Reply, State};
 
-process_response(#{<<"event">> := <<"abort">>, <<"id">> := Id}, {CallBackModule})->
+process_response(#{<<"event">> := <<"abort">>, <<"id">> := Id}, State, _)->
     lager:debug("process response: abort"),
-    call_callback(CallBackModule, onabort, [Id]),
-    {ok, {}};
+    Reply = {aborted, Id},
+    {reply, Reply, State};
 
-process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id}, {CallBackModule})->
+process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id}, State, _)->
     lager:debug("process response: destroy"),
-    call_callback(CallBackModule, ondestroy, [Id]),
-    stop_pengine_process(Id),
-    {ok, {}};
+    Reply = "Pengine slave: " ++ [Id] ++" was destroyed",
+    {stop, Reply, {pengine_destroyed, Reply},State};
 
-process_response(#{<<"event">> := <<"died">>, <<"id">> := Id, <<"data">> := Data}, {CallBackModule})->
+process_response(#{<<"event">> := <<"died">>, <<"id">> := Id, <<"data">> := Data}, State, _)->
     lager:debug("process response: died"),
-    call_callback(CallBackModule, onerror, [Id, Data]),
-    stop_pengine_process(Id),
-    {ok, {}}.
+    Reply = {"Pengine slave: " ++ [Id] ++" is dead", Data},
+    {stop, Reply, {pengine_died, Reply},State}.
 
 
 %% @doc
@@ -311,15 +292,3 @@ options_to_list(Options)->
              end, "[", Options),
     Opts ++ "]".
 
-%% @doc
-%% @private
-%% Stops a pengine given a id.
--spec stop_pengine_process(binary()) -> {ok, undefined} | {ok, stopped}.
-stop_pengine_process(Id)->
-    case syn:find_by_key(Id) =:= undefined of
-        true ->
-            {ok, undefined};
-        false ->
-            gen_server:stop(syn:find_by_key(Id)),
-            {ok, stopped}
-    end.
