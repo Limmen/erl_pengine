@@ -15,7 +15,8 @@
            server/1,
            stop/1,
            long_query/1,
-           prompt_test/1
+           prompt_test/1,
+           output_test/0
           ]).
 
 :- use_module(library(http/thread_httpd)).
@@ -30,6 +31,7 @@
 sandbox:safe_primitive(lists:member(_,_)).
 sandbox:sandbox_allowed_goal(long_query(_)).
 sandbox:sandbox_allowed_goal(prompt_test(_)).
+sandbox:sandbox_allowed_goal(output_test).
 
 %%%===================================================================
 %%% API
@@ -59,3 +61,8 @@ long_query(X):-
 %% prompt_test(_).
 prompt_test(prompt_test_success(Input)):-
 	pengine_input(prompt_test, Input).
+
+%% Sends Term to the parent pengine or thread.
+%% output_test.
+output_test:-
+    pengine_output(output_test_success).

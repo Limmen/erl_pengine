@@ -56,7 +56,9 @@
                          {{error, {max_limit, Reason :: any()}}, destroy_response()}.
 
 -type ask_response():: {query_response(), destroy_response()} |
-                       query_response().
+                       query_response() |
+                       {output_response(), destroy_response()} |
+                       output_response().
 
 -type query_response()::{failure, Id :: binary()} |
                         {success, Id :: binary(), Data :: list(), More :: boolean()}.
@@ -74,7 +76,9 @@
 
 -type error_response()::{error, Id :: binary(), Reason :: binary(), Code :: binary()}.
 
--type prompt_response()::{prompt, Id :: binary(), Data :: any()}.
+-type prompt_response()::{prompt, Id :: binary(), Data :: binary()}.
+
+-type output_response()::{{output, PrologOutput :: any()}, {pull_response, ask_response()}}.
 
 %%====================================================================
 %% API functions
@@ -105,14 +109,14 @@ id(Pengine)->
 %% A prolog variable (or a term containing problog variables) shared with the query.
 %% chunk :: integer() :
 %% The maximum number of solutions to retrieve in one chunk. 1 means no chunking (default).
--spec ask(pid(), string(), query_options()) -> query_response() | error_response().
+-spec ask(pid(), string(), query_options()) -> ask_response() | error_response().
 ask(Pengine, Query, Options) ->
     lager:info("sending a query ~p to the pengine", [Query]),
     gen_server:call(Pengine, {ask, Query, Options}, infinity).
 
 %% @doc
 %% Triggers a search for the next solution.
--spec next(pid()) -> query_response() | error_response().
+-spec next(pid()) -> ask_response() | error_response().
 next(Pengine) ->
     lager:info("asking the pengine for next solution"),
     gen_server:call(Pengine, {next}, infinity).
@@ -121,7 +125,7 @@ next(Pengine) ->
 %% Inputs a term in response to a prompt from an invocation of pengine_input/2
 %% that is now waiting to receive data from the outside.
 %% Throws an error if string cannot be parsed as a Prolog term or if object cannot be serialised into JSON.
--spec respond(pid(), list()) -> response().
+-spec respond(pid(), list()) -> ask_response() | error_response().
 respond(Pengine, PrologTerm) ->
     lager:info("responds to pengine_input with ~p", [PrologTerm]),
     gen_server:call(Pengine, {respond, PrologTerm}, infinity).
@@ -282,10 +286,20 @@ process_response(#{<<"event">> := <<"success">>, <<"id">> := Id, <<"data">> := D
     Reply = {success, Id, Data, More},
     {reply, Reply, State};
 
-process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := _Data}, State, {Server, Format})->
+process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := Output}, State, _)->
     lager:debug("process response: output"),
-    {ok, Res} = pengine_pltp_http:pull_response(Id, Server, Format),
-    process_response(Res, State, {Server, Format});
+    lager:info("output event handler!!"),
+    {ok, Res} = pengine_pltp_http:pull_response(Id, State#pengine_state.server, "json"),
+    lager:info("Pull response returned: ~p", [Res]),
+    PullResponse = process_response(Res, State, {}),
+    case PullResponse of
+        {stop, Reason, Reply, State1} ->
+            Reply1 = {{output, Output}, {pull_response, Reply}},
+            {stop, Reason, Reply1, State1};
+        {reply, Reply, State1} ->
+            Reply1 = {{output, Output}, {pull_response, Reply}},
+            {reply, Reply1, State1}
+    end;
 
 process_response(#{<<"event">> := <<"ping">>, <<"id">> := Id, <<"data">> := Data}, State, _)->
     lager:debug("process response: ping"),

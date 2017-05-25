@@ -1,7 +1,9 @@
 %%%-------------------------------------------------------------------
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
-%% @doc test suite for module system_test
+%% @doc Systems tests for erlang_pengine. 
+%% Before suit start it starts prolog server to interact with to 
+%% create pengines.
 %% @end
 %%%-------------------------------------------------------------------
 -module(system_test_SUITE).
@@ -53,7 +55,9 @@ all() ->
      test_abort,
      test_lookup,
      test_list_pengines,
-     test_stop
+     test_stop,
+     test_prompt,
+     test_output
     ].
 
 
@@ -177,10 +181,45 @@ test_stop(_Config)->
     Res = pengine_master:stop(Id1, "http://127.0.0.1:4000/pengine"),
     case Res of 
         {stopped, Id1} -> ok;
+        {successs, Id1, _Data} -> ok;
         {error, Id1, _Reason, _Code} -> ok; %% error if nothing to stop
         _ -> ct:fail("Received unexpected result from pengine: ~p", [Res])
     end,
     pengine_master:kill_all_pengines().
+
+%% Test prompt & respond
+test_prompt(_Config)->
+    Options = #{destroy => true, application => "pengine_sandbox", chunk => 1, format => json},
+    {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
+    {prompt, Id1, <<"prompt_test">>} = pengine:ask(P1, "prompt_test(X)", #{template => "[X]", chunk => "1"}),
+    {{success, Id1, 
+      [[
+        #{
+           <<"args">> := [<<"pengine">>], 
+           <<"functor">> := <<"prompt_test_success">>
+         }
+       ]], false}, {pengine_destroyed, _Reason1}} = pengine:respond(P1, "pengine"),
+    ?assertNot(is_process_alive(P1)),
+    Options1 = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json},
+    {{ok, {P2, Id2}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options1),
+    pengine:ask(P2, "prompt_test(X)", #{template => "[X]", chunk => "1"}),
+    pengine:respond(P2, "pengine"),
+    ?assert(is_process_alive(P2)),
+    {error, Id2, _Reason2, <<"protocol_error">>} = pengine:respond(P2, "pengine"). %% no prompt left to respond to.
+
+%% Test output
+test_output(_Config)->
+    Options = #{destroy => true, application => "pengine_sandbox", chunk => 1, format => json},
+    {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
+    {
+      {output,<<"output_test_success">>},
+      {pull_response,
+       {
+         {success,Id1,[[]],false},
+         {pengine_destroyed, _Reason}}
+      }
+    } 
+        = pengine:ask(P1, "output_test", #{template => "[]", chunk => "1"}).
 
 %%===================================================================
 %% Internal functions
