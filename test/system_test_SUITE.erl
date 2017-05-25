@@ -116,6 +116,8 @@ test_ask(_Config)->
     {{ok, {P3, Id3}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
     {{success, Id3, [[1],[2]], false}, {pengine_destroyed, _}} = pengine:ask(P3, "member(X, [1,2])", #{template => "[X]", chunk => "2"}),
     ?assertNot(is_process_alive(P3)),
+    {{ok, {P4, Id4}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
+    {{failure, Id4}, {pengine_destroyed, _}} = pengine:ask(P4, "member(3, [1,2])", #{template => "[]", chunk => "10"}),
     pengine_master:kill_all_pengines().
 
 %% test abortion request
@@ -130,7 +132,7 @@ test_abort(_Config)->
     {pengine_died,_Reason2} = pengine_master:abort(Id1, "http://127.0.0.1:4000/pengine"),
     receive
         aborted ->
-            pengine_master:kill_all_pengines()
+            ok
     after 5000 ->
             ct:fail("Pengine abort timeout")
     end.
@@ -172,7 +174,12 @@ test_stop(_Config)->
     spawn(fun() -> 
                   pengine:ask(P1, "member(X, [1,2])", #{template => "[X]", chunk => "1"})
           end),
-    ?assertMatch({stopped, Id1}, pengine_master:stop(Id1, "http://127.0.0.1:4000/pengine")),
+    Res = pengine_master:stop(Id1, "http://127.0.0.1:4000/pengine"),
+    case Res of 
+        {stopped, Id1} -> ok;
+        {error, Id1, _Reason, _Code} -> ok; %% error if nothing to stop
+        _ -> ct:fail("Received unexpected result from pengine: ~p", [Res])
+    end,
     pengine_master:kill_all_pengines().
 
 %%===================================================================

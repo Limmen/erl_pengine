@@ -1,7 +1,7 @@
 %%%-------------------------------------------------------------------
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
-%% @doc pengine_sup, supervises pengine-processes that are created 
+%% @doc pengine_sup, supervises pengine-processes that are created
 %% dynamically.
 %% @end
 %%%-------------------------------------------------------------------

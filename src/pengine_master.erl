@@ -14,9 +14,9 @@
 -include("records.hrl").
 
 %% API
--export([start_link/0, create_pengine/2, list_pengines/0, kill_all_pengines/0, 
+-export([start_link/0, create_pengine/2, list_pengines/0, kill_all_pengines/0,
          stop/2, lookup_pengine/1, abort/2]).
--export_type([pengine_create_options/0]).
+-export_type([pengine_create_options/0, master_state/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -31,6 +31,8 @@
 -define(SERVER, ?MODULE).
 
 %% types
+
+-type master_state()::#master_state{}.
 
 %% pengine create options
 -type pengine_create_options():: #{
@@ -54,9 +56,8 @@ start_link() ->
 
 %% @doc
 %% Creates pengine with given options
--spec create_pengine(string(), pengine:pengine_create_options()) -> 
-                            {ok, pid()} | already_present | 
-                            {already_started, pid()} | term().
+-spec create_pengine(string(), pengine:pengine_create_options()) ->
+                            pengine:create_response() | pengine:error_response().
 create_pengine(Server, CreateOptions) ->
     lager:info("creating pengine, server: ~p, createOpts: ~p", [Server, CreateOptions]),
     gen_server:call(?SERVER, {create, Server, CreateOptions}).
@@ -81,7 +82,7 @@ kill_all_pengines()->
 
 %% @doc
 %% Tells a busy pengine to stop searching for solutions. Terminates the running query gracefully.
--spec stop(binary(), string()) -> any() | {pengine_destroyed, list()}.
+-spec stop(binary(), string()) -> pengine:stop_response() | pengine:error_response().
 stop(Id, Server) ->
     lager:info("stopping pengine ~p that is running some query"),
     gen_server:call(?SERVER, {stop, Id, Server}).
@@ -89,7 +90,7 @@ stop(Id, Server) ->
 
 %% @doc
 %% Terminates the running query of a busy pengine by force
--spec abort(binary(), string()) -> any() | {pengine_destroyed, list()}.
+-spec abort(binary(), string()) -> pengine:abort_response() | pengine:error_response().
 abort(Id, Server) ->
     lager:info("aborts the running query abruptely"),
     gen_server:call(?SERVER, {abort, Id, Server}).
@@ -101,17 +102,18 @@ abort(Id, Server) ->
 %% @private
 %% @doc
 %% Initializes the server
--spec init(list()) -> {ok, #master_state{}}.
+-spec init(list()) -> {ok, master_state()}.
 init([]) ->
     {ok, #master_state{}}.
 
 %% @private
 %% @doc
 %% Handling call messages
--spec handle_call(term(), term(), #master_state{}) -> {reply, ok, #master_state{}}.
+-spec handle_call(term(), term(), master_state()) ->
+                         {reply, any(), master_state()}.
 handle_call({create, Server, CreateOptions}, _From, State) ->
     cleanup_pengines(State#master_state.table_id),
-    Opts = maps:fold(fun(K,V,S) -> S#{K => V}  end, default_create_options(), CreateOptions),
+    Opts = maps:fold(fun(K, V, S) -> S#{K => V}  end, default_create_options(), CreateOptions),
     {ok, Res} = pengine_pltp_http:create(Server, Opts),
     pengine:process_response(Res, State, {State#master_state.table_id, Server});
 
@@ -140,14 +142,14 @@ handle_call(_Request, _From, State) ->
 %% @private
 %% @doc
 %% Handling cast messages
--spec handle_cast(term(), #master_state{}) -> {noreply, #master_state{}}.
+-spec handle_cast(term(), master_state()) -> {noreply, master_state()}.
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %% @private
 %% @doc
 %% Handling all non call/cast messages
--spec handle_info(timeout | term(), #master_state{}) -> {noreply, #master_state{}}.
+-spec handle_info(timeout | term(), master_state()) -> {noreply, master_state()}.
 handle_info({'ETS-TRANSFER', TableId, Pid, _Data}, State) ->
     lager:info("pengine master recieved slave-pengine state from ~p, tableId: ~p", [Pid, TableId]),
     lager:info("Active slave-pengines: ~p", [ets:tab2list(TableId)]),
@@ -160,7 +162,7 @@ handle_info(_Info, State) ->
 %% @private
 %% @doc
 %% Cleanup function, kill all pengines before termination.
--spec terminate(normal | shutdown | {shutdown,term()}, #master_state{}) -> ok.
+-spec terminate(normal | shutdown | {shutdown, term()}, master_state()) -> ok.
 terminate(Reason, State) ->
     lager:info("Pengine master terminating, reason: ~p", [Reason]),
     cleanup_pengines(State#master_state.table_id),
@@ -170,7 +172,7 @@ terminate(Reason, State) ->
 %% @private
 %% @doc
 %% Convert process state when code is changed
--spec code_change(term | {down, term()}, #master_state{}, term()) -> {ok, #master_state{}}.
+-spec code_change(term | {down, term()}, master_state(), term()) -> {ok, master_state()}.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
@@ -199,7 +201,7 @@ default_create_options()->
 %% kill all active pengines
 -spec kill_all_pengines(ets:tid()) -> ok.
 kill_all_pengines(TableId)->
-    lists:map(fun({Id}) -> 
+    lists:map(fun({Id}) ->
                       case syn:find_by_key(Id) =:= undefined of
                           true ->
                               {ok, undefined};

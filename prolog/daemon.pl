@@ -13,7 +13,7 @@
 %%%===================================================================
 %%% Facts
 %%%===================================================================
-%% prolog daemon.pl --http=4000 --pidfile=pid/http.pid
+
 :- use_module(library(http/http_unix_daemon)).
 :- initialization http_daemon.
 :- [server].

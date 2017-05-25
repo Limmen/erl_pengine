@@ -2,7 +2,7 @@
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
 %% @doc pengine_plptp_http library.
-%% Erlang implementation of Prolog Transport Protocol (PLTP) 
+%% Erlang implementation of Prolog Transport Protocol (PLTP)
 %% over HTTP.
 %% @end
 %%%-------------------------------------------------------------------
@@ -23,7 +23,7 @@
 -spec ping(binary(), string(), string(), integer()) -> {ok, map()} |
                                                        {error, any()}.
 ping(Id, Server, Format, _Interval) ->
-    URL = list_to_binary(Server ++ "/ping?id=" ++ binary:bin_to_list(Id) ++"&format=" ++ Format),
+    URL = list_to_binary(Server ++ "/ping?id=" ++ binary:bin_to_list(Id) ++ "&format=" ++ Format),
     lager:info("sending ping to: ~p", [URL]),
     case hackney:get(URL, [json_accept_header()], <<>>, []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
@@ -41,7 +41,7 @@ ping(Id, Server, Format, _Interval) ->
 -spec pull_response(binary(), string(), string()) -> {ok, map()} |
                                                      {error, any()}.
 pull_response(Id, Server, Format) ->
-    URL = list_to_binary(Server ++ "/pull_response?id=" ++ binary:bin_to_list(Id) ++"&format=" ++ Format),
+    URL = list_to_binary(Server ++ "/pull_response?id=" ++ binary:bin_to_list(Id) ++ "&format=" ++ Format),
     lager:info("sending pull_response to: ~p", [URL]),
     case hackney:get(URL, [json_content_type(), json_accept_header()], <<>>, []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
@@ -99,7 +99,7 @@ create(Server, Options) ->
 -spec abort(binary(), string(), string()) -> {ok, map()} |
                                              {error, any()}.
 abort(Id, Server, Format) ->
-    URL = list_to_binary(Server ++ "/abort?id=" ++ binary:bin_to_list(Id) ++"&format=" ++ Format),
+    URL = list_to_binary(Server ++ "/abort?id=" ++ binary:bin_to_list(Id) ++ "&format=" ++ Format),
     lager:info("sending abort pengine request to: ~p", [URL]),
     case hackney:get(URL, [json_content_type(), json_accept_header()], <<>>, []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
