@@ -49,7 +49,11 @@ all() ->
      test_destroy,
      test_ping,
      test_id,
-     test_ask
+     test_ask,
+     test_abort,
+     test_lookup,
+     test_list_pengines,
+     test_stop
     ].
 
 
@@ -112,6 +116,63 @@ test_ask(_Config)->
     {{ok, {P3, Id3}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
     {{success, Id3, [[1],[2]], false}, {pengine_destroyed, _}} = pengine:ask(P3, "member(X, [1,2])", #{template => "[X]", chunk => "2"}),
     ?assertNot(is_process_alive(P3)),
+    pengine_master:kill_all_pengines().
+
+%% test abortion request
+test_abort(_Config)->
+    {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", #{}),
+    Self = self(),
+    spawn(fun() -> 
+                  {{aborted, Id1}, {pengine_destroyed, _Reason1}} = pengine:ask(P1, "long_query(X)", #{template => "[X]", chunk => "1"}),
+                  Self ! aborted
+          end),
+    ct:sleep(1000),
+    {pengine_died,_Reason2} = pengine_master:abort(Id1, "http://127.0.0.1:4000/pengine"),
+    receive
+        aborted ->
+            pengine_master:kill_all_pengines()
+    after 5000 ->
+            ct:fail("Pengine abort timeout")
+    end.
+
+%% test lookup
+test_lookup(_Config)->
+    {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", #{}),
+    ?assertMatch(P1, pengine_master:lookup_pengine(Id1)),
+    pengine_master:kill_all_pengines().
+
+%% test list_all_pengines
+test_list_pengines(_Config)->
+    {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", #{}),
+    List1 = pengine_master:list_pengines(),
+    ?assert(lists:member({P1,Id1}, List1)),
+    ?assert(length(List1) =:= 1),
+    {{ok, {P2, Id2}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", #{}),
+    List2 = pengine_master:list_pengines(),
+    ?assert(lists:member({P1,Id1}, List2)),
+    ?assert(lists:member({P2,Id2}, List2)),
+    ?assert(length(List2) =:= 2),
+    pengine:destroy(P1),
+    ct:sleep(500),
+    List3 = pengine_master:list_pengines(),
+    ?assertNot(lists:member({P1,Id1}, List3)),
+    ?assert(lists:member({P2,Id2}, List3)),
+    ?assert(length(List3) =:= 1),
+    pengine:destroy(P2),
+    ct:sleep(500),
+    List4 = pengine_master:list_pengines(),
+    ?assertNot(lists:member({P1,Id1}, List4)),
+    ?assertNot(lists:member({P2,Id2}, List4)),
+    ?assert(length(List4) =:= 0).
+
+%% test stop request
+test_stop(_Config)->
+    Options = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json},
+    {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
+    spawn(fun() -> 
+                  pengine:ask(P1, "member(X, [1,2])", #{template => "[X]", chunk => "1"})
+          end),
+    ?assertMatch({stopped, Id1}, pengine_master:stop(Id1, "http://127.0.0.1:4000/pengine")),
     pengine_master:kill_all_pengines().
 
 %%===================================================================

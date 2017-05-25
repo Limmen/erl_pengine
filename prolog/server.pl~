@@ -15,7 +15,7 @@
            server/1,
            stop/1,
            long_query/1,
-           prompt_test/1
+	   prompt_test/1
           ]).
 
 :- use_module(library(http/thread_httpd)).
@@ -29,7 +29,6 @@
 %% Safe predicates accessible from remote client
 sandbox:safe_primitive(lists:member(_,_)).
 sandbox:sandbox_allowed_goal(long_query(_)).
-sandbox:sandbox_allowed_goal(prompt_test(_)).
 
 %%%===================================================================
 %%% API
@@ -54,8 +53,5 @@ stop(Port):-
 long_query(X):-
     long_query(X).
 
-%% Sends Prompt to the parent pengine and waits for input.
-%% prompt_test(-).
-%% prompt_test(_).
-prompt_test(prompt_test_success(Input)):-
-	pengine_input(prompt_test, Input).
+prompt_test(prompt_test(Input)):-
+	pengine_input(prompt_test,  Input).

@@ -14,7 +14,8 @@
 -include("records.hrl").
 
 %% API
--export([start_link/0, create_pengine/2, list_pengines/0, kill_all_pengines/0]).
+-export([start_link/0, create_pengine/2, list_pengines/0, kill_all_pengines/0, 
+         stop/2, lookup_pengine/1, abort/2]).
 -export_type([pengine_create_options/0]).
 
 %% gen_server callbacks
@@ -67,10 +68,31 @@ list_pengines()->
     gen_server:call(?SERVER, {list_pengines}).
 
 %% @doc
+%% Lookup pengin pid based on id
+-spec lookup_pengine(binary()) -> pid().
+lookup_pengine(Id)->
+    syn:find_by_key(Id).
+
+%% @doc
 %% Kill all active pengines
 -spec kill_all_pengines() -> ok.
 kill_all_pengines()->
     gen_server:call(?SERVER, {kill_all_pengines}).
+
+%% @doc
+%% Tells a busy pengine to stop searching for solutions. Terminates the running query gracefully.
+-spec stop(binary(), string()) -> any() | {pengine_destroyed, list()}.
+stop(Id, Server) ->
+    lager:info("stopping pengine ~p that is running some query"),
+    gen_server:call(?SERVER, {stop, Id, Server}).
+
+
+%% @doc
+%% Terminates the running query of a busy pengine by force
+-spec abort(binary(), string()) -> any() | {pengine_destroyed, list()}.
+abort(Id, Server) ->
+    lager:info("aborts the running query abruptely"),
+    gen_server:call(?SERVER, {abort, Id, Server}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -102,6 +124,14 @@ handle_call({kill_all_pengines}, _From, State) ->
     cleanup_pengines(State#master_state.table_id),
     kill_all_pengines(State#master_state.table_id),
     {reply, ok, State};
+
+handle_call({stop, Id, Server}, _From, State) ->
+    {ok, Res} = pengine_pltp_http:send(Id, Server, "stop", "json"),
+    pengine:process_response(Res, State, {});
+
+handle_call({abort, Id, Server}, _From, State) ->
+    {ok, Res} = pengine_pltp_http:abort(Id, Server, "json"),
+    pengine:process_response(Res, State, {});
 
 handle_call(_Request, _From, State) ->
     Reply = ok,

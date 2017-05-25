@@ -68,7 +68,7 @@ send(Id, Server, Event, Format) ->
     URL = list_to_binary(Server ++ "/send?format=" ++ Format ++ "&id=" ++ Id),
     Data = list_to_binary(Event ++ ".\n"),
     lager:info("sending event ~p to pengine: ~p", [Event, Id]),
-    case hackney:post(URL, [prolog_content_type()], Data, []) of
+    case hackney:post(URL, [prolog_content_type()], Data, [{recv_timeout, infinity}]) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
             {ok, jsx:decode(Body, [return_maps])};

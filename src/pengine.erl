@@ -13,7 +13,7 @@
 -include("records.hrl").
 
 %% API
--export([start_link/1, id/1, ask/3, next/1, stop/1, respond/2, abort/1, 
+-export([start_link/1, id/1, ask/3, next/1, respond/2,
          destroy/1, process_response/3, ping/2]).
 
 %% gen_server callbacks
@@ -68,21 +68,14 @@ id(Pengine)->
 -spec ask(pid(), string(), query_options()) -> any() | {pengine_destroyed, list()}.
 ask(Pengine, Query, Options) ->
     lager:info("sending a query ~p to the pengine", [Query]),
-    gen_server:call(Pengine, {ask, Query, Options}).
+    gen_server:call(Pengine, {ask, Query, Options}, infinity).
 
 %% @doc
 %% Triggers a search for the next solution.
 -spec next(pid()) -> any() | {pengine_destroyed, list()}.
 next(Pengine) ->
     lager:info("asking the pengine for next solution"),
-    gen_server:call(Pengine, {next}).
-
-%% @doc
-%% Stops searching for solutions. Terminates the running query gracefully.
--spec stop(pid()) -> any() | {pengine_destroyed, list()}.
-stop(Pengine) ->
-    lager:info("stopping the running query"),
-    gen_server:call(Pengine, {stop}).
+    gen_server:call(Pengine, {next}, infinity).
 
 %% @doc
 %% Inputs a term in response to a prompt from an invocation of pengine_input/2
@@ -91,26 +84,19 @@ stop(Pengine) ->
 -spec respond(pid(), list()) -> any() | {pengine_destroyed, list()}.
 respond(Pengine, PrologTerm) ->
     lager:info("responds to pengine_input with ~p", [PrologTerm]),
-    gen_server:call(Pengine, {respond, PrologTerm}).
-
-%% @doc
-%% Terminates the running query by force.
--spec abort(pid()) -> any() | {pengine_destroyed, list()}.
-abort(Pengine) ->
-    lager:info("aborts the running query abruptely"),
-    gen_server:call(Pengine, {abort}).
+    gen_server:call(Pengine, {respond, PrologTerm}, infinity).
 
 %% @doc
 %% Destroys the pengine.
 -spec destroy(pid()) -> {pengine_destroyed, list()}.
 destroy(Pengine) ->
     lager:info("destroying the pengine"),
-    gen_server:call(Pengine, {destroy}).
+    gen_server:call(Pengine, {destroy}, infinity).
 
 -spec ping(pid(), integer()) -> map().
 ping(Pengine, Interval) ->
     lager:info("pinging the pengine"),
-    gen_server:call(Pengine, {ping, Interval}).
+    gen_server:call(Pengine, {ping, Interval}, infinity).
 
 %%====================================================================
 %% gen_server callbacks
@@ -145,17 +131,9 @@ handle_call({next}, _From, State) ->
     lager:info("next response: ~p", [Res]),
     process_response(Res, State, {});
 
-handle_call({stop}, _From, State) ->
-    {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "stop", "json"),
-    process_response(Res, State, {});
-
 handle_call({respond, PrologTerm}, _From, State) ->
     Send = "input((" ++ PrologTerm ++ "))",
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, Send, "json"),
-    process_response(Res, State, {});
-
-handle_call({abort}, _From, State) ->
-    {ok, Res} = pengine_pltp_http:abort(State#pengine_state.id, State#pengine_state.server, "json"),
     process_response(Res, State, {});
 
 handle_call({destroy}, _From, State) ->
@@ -276,10 +254,9 @@ process_response(#{<<"event">> := <<"abort">>, <<"id">> := Id}, State, _)->
 
 process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id, <<"data">> := Data}, State, _)->
     lager:debug("process response: destroy"),
-    lager:info("Processing destroy event with data!!"),
     {reply, Reply1, State1} = process_response(Data, State, {}),
     Reply2 = {pengine_destroyed, "Pengine slave: " ++ [Id] ++" was destroyed"},
-    lager:info("Returning reply: ~p", {Reply1, Reply2}),
+    lager:info("Returning reply: ~p", [{Reply1, Reply2}]),
     Reason = normal,
     {stop, Reason, {Reply1, Reply2}, State1};
 
@@ -291,9 +268,13 @@ process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id}, State, _)->
 
 process_response(#{<<"event">> := <<"died">>, <<"id">> := Id, <<"data">> := Data}, State, _)->
     lager:debug("process response: died"),
-    Reason = normal,
     Reply = {pengine_died, {"Pengine slave: " ++ [Id] ++" is dead", Data}},
-    {stop, Reason, Reply,State}.
+    {reply, Reply, State};
+
+process_response(#{<<"event">> := <<"died">>, <<"id">> := Id}, State, _)->
+    lager:debug("process response: died"),
+    Reply = {pengine_died, {"Pengine slave: " ++ [Id] ++" is dead"}},
+    {reply, Reply, State}.
 
 
 %% @doc
