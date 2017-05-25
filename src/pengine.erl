@@ -66,7 +66,7 @@ id(Pengine)->
 %% chunk :: integer() :
 %% The maximum number of solutions to retrieve in one chunk. 1 means no chunking (default).
 -spec ask(pid(), string(), query_options()) -> any() | {pengine_destroyed, list()}.
-ask(Pengine,Query, Options) ->
+ask(Pengine, Query, Options) ->
     lager:info("sending a query ~p to the pengine", [Query]),
     gen_server:call(Pengine, {ask, Query, Options}).
 
@@ -131,16 +131,18 @@ init([Id, Server]) ->
 %% Handling call messages
 -spec handle_call(term(), term(), #pengine_state{}) -> {reply, ok, #pengine_state{}}.
 handle_call({id}, _From, State) ->
-    Reply = ok,
+    Reply = State#pengine_state.id,
     {reply, Reply, State};
 
 handle_call({ask, Query, Options}, _From, State) ->
     Send = "ask((" ++ Query ++ "), " ++ options_to_list(Options) ++ ")",
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, Send, "json"),
+    lager:info("Ask response: ~p", [Res]),
     process_response(Res, State, {});
 
 handle_call({next}, _From, State) ->
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "next", "json"),
+    lager:info("next response: ~p", [Res]),
     process_response(Res, State, {});
 
 handle_call({stop}, _From, State) ->
@@ -207,23 +209,25 @@ code_change(_OldVsn, State, _Extra) ->
 %% process response to sent request
 -spec process_response(map(), #pengine_state{}, tuple()) -> {reply, any(), #pengine_state{}}|
                                                             {stop, any(), {pengine_destroyed, any()},#pengine_state{}}.
-process_response(#{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">> := SlaveLimit}, State, {TableId, Server})->
+process_response(Res = #{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">> := SlaveLimit}, State, {TableId, Server})->
     {size, Size} = lists:keyfind(size, 1, ets:info(TableId)),
     lager:info("Attempting to create pengine, max_slaves: ~p , active pengines: ~p", [SlaveLimit, Size]),
     if 
         SlaveLimit > Size ->
             {ok, Pid} = supervisor:start_child(pengine_sup, [[Id, Server]]),
             ets:insert(TableId, {Id}),
-            Reply = {ok, {Pid, Id}},
-            {reply, Reply, State};
+            Reply1 = {ok, {Pid, Id}},
+            {Reply2, State1} = get_create_query(Res, State),
+            {reply, {Reply1, Reply2}, State1};
         true -> 
             lager:info("Attempt to create too many pengines. The limit is: ~p ~n", [SlaveLimit]),
-            Reason = "Attemt to create too many pengines. The limit is: " ++ [SlaveLimit] ++ "\n",
-            {ok, Res} = pengine_pltp_http:send(Id, Server, "destroy", "json"),
-            process_response(Res, State, {}),
-            Reply = {error, {max_limit, Reason}},
-            {reply, Reply, State}
+            Reason = "Attempt to create too many pengines. The limit is: " ++ [SlaveLimit] ++ "\n",
+            {ok, DestroyRes} = pengine_pltp_http:send(Id, Server, "destroy", "json"),
+            Reply1 = {error, {max_limit, Reason}},
+            {stop, _, Reply2, State1} = process_response(DestroyRes, State, {}),
+            {reply, {Reply1, Reply2}, State1}
     end;
+
 
 process_response(#{<<"event">> := <<"stop">>, <<"id">> := Id}, State, _)->
     lager:debug("process response: stop"),
@@ -242,7 +246,8 @@ process_response(#{<<"event">> := <<"prompt">>, <<"id">> := Id, <<"data">> := Da
 
 process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"code">> := <<"existence_error">>, <<"data">> := Data}, State, _)->
     Reply = {error, Id, Data},
-    {stop, Reply, {pengine_existence_error, Reply},State};
+    Reason = normal,
+    {stop, Reason, {pengine_existence_error, Reply},State};
 
 process_response(#{<<"event">> := <<"error">>, <<"id">> := Id, <<"data">> := Data}, State, _)->
     lager:debug("process response: error"),
@@ -269,15 +274,26 @@ process_response(#{<<"event">> := <<"abort">>, <<"id">> := Id}, State, _)->
     Reply = {aborted, Id},
     {reply, Reply, State};
 
+process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id, <<"data">> := Data}, State, _)->
+    lager:debug("process response: destroy"),
+    lager:info("Processing destroy event with data!!"),
+    {reply, Reply1, State1} = process_response(Data, State, {}),
+    Reply2 = {pengine_destroyed, "Pengine slave: " ++ [Id] ++" was destroyed"},
+    lager:info("Returning reply: ~p", {Reply1, Reply2}),
+    Reason = normal,
+    {stop, Reason, {Reply1, Reply2}, State1};
+
 process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id}, State, _)->
     lager:debug("process response: destroy"),
-    Reply = "Pengine slave: " ++ [Id] ++" was destroyed",
-    {stop, Reply, {pengine_destroyed, Reply},State};
+    Reason = normal,
+    Reply = {pengine_destroyed, "Pengine slave: " ++ [Id] ++" was destroyed"},
+    {stop, Reason, Reply ,State};
 
 process_response(#{<<"event">> := <<"died">>, <<"id">> := Id, <<"data">> := Data}, State, _)->
     lager:debug("process response: died"),
-    Reply = {"Pengine slave: " ++ [Id] ++" is dead", Data},
-    {stop, Reply, {pengine_died, Reply},State}.
+    Reason = normal,
+    Reply = {pengine_died, {"Pengine slave: " ++ [Id] ++" is dead", Data}},
+    {stop, Reason, Reply,State}.
 
 
 %% @doc
@@ -292,3 +308,12 @@ options_to_list(Options)->
              end, "[", Options),
     Opts ++ "]".
 
+%% @doc
+%% @private
+%% extract create-query response
+get_create_query(#{<<"answer">> := QueryRes}, State) ->
+    {reply, Reply, State1} = process_response(QueryRes, State, {}),
+    {{create_query, Reply}, State1};
+
+get_create_query(_,State) ->
+    {{no_create_query}, State}.
