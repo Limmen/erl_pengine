@@ -10,7 +10,7 @@
 -author('Kim Hammar <kimham@kth.se>').
 
 %% API
--export([ping/4, pull_response/3, create/2, send/4, abort/3]).
+-export([ping/3, pull_response/3, create/2, send/4, abort/3]).
 
 %%====================================================================
 %% API functions
@@ -20,9 +20,9 @@
 %% Ping the status of the pengine.
 %% If Interval < 0, send a single ping.
 %% If Interval > 0, set/change periodic ping event, if 0, clear periodic interval
--spec ping(binary(), string(), string(), integer()) -> {ok, map()} |
-                                                       {error, any()}.
-ping(Id, Server, Format, _Interval) ->
+-spec ping(binary(), string(), string()) -> {ok, map()} |
+                                            {error, any()}.
+ping(Id, Server, Format) ->
     URL = list_to_binary(Server ++ "/ping?id=" ++ binary:bin_to_list(Id) ++ "&format=" ++ Format),
     lager:info("sending ping to: ~p", [URL]),
     case hackney:get(URL, [json_accept_header()], <<>>, []) of
@@ -83,9 +83,10 @@ send(Id, Server, Event, Format) ->
 -spec create(string(), pengine:pengine_create_options()) -> {ok, map()} |
                                                             {error, any()}.
 create(Server, Options) ->
+    Options1 = options_to_binary(Options),
     URL = list_to_binary(Server ++ "/create"),
-    lager:info("sending create pengine request to: ~p, options: ~p", [URL, options_to_json(Options)]),
-    case hackney:post(URL, [json_content_type(), json_accept_header()], options_to_json(Options), []) of
+    lager:info("sending create pengine request to: ~p, options: ~p", [URL, options_to_json(Options1)]),
+    case hackney:post(URL, [json_content_type(), json_accept_header()], options_to_json(Options1), []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
             {ok, jsx:decode(Body, [return_maps])};
@@ -141,3 +142,14 @@ json_accept_header()->
 -spec options_to_json(map()) -> binary().
 options_to_json(Options)->
     jsx:encode(Options).
+
+%% @doc
+%% @private
+%% if user passed strings as args, convert to binary to avoid having it
+%% encoded as json-lists which breaks the API with the pengine.
+-spec options_to_binary(map()) -> map().
+options_to_binary(Options)->
+    maps:fold(fun
+                  (K, V, Map) when is_list(V) -> maps:put(K, list_to_binary(V), Map);
+                  (K, V, Map) -> maps:put(K, V, Map) end,
+              #{}, Options).

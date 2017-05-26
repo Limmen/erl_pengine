@@ -65,7 +65,8 @@
 
 -type destroy_response()::{pengine_destroyed, Reason :: any()}.
 
--type ping_response():: {ping_response, Id :: binary(), Data :: map()}.
+-type ping_response():: {ping_response, Id :: binary(), Data :: map()} |
+                        {ping_interval_set, Interval :: integer()}.
 
 -type died_response()::{pengine_died, Reason :: any()}.
 
@@ -183,9 +184,15 @@ handle_call({destroy}, _From, State) ->
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "destroy", "json"),
     process_response(Res, State, {});
 
-handle_call({ping, Interval}, _From, State) ->
-    {ok, Res} = pengine_pltp_http:ping(State#pengine_state.id, State#pengine_state.server, "json", Interval),
+handle_call({ping, 0}, _From, State) ->
+    erlang:cancel_timer(State#pengine_state.ping_timer),
+    {ok, Res} = pengine_pltp_http:ping(State#pengine_state.id, State#pengine_state.server, "json"),
     process_response(Res, State, {});
+
+handle_call({ping, Interval}, _From, State) when Interval > 0 ->
+    erlang:cancel_timer(State#pengine_state.ping_timer),
+    Timer = erlang:send_after(Interval*1000, self(), {ping_timeout, Interval}),
+    {reply, {ping_interval_set, Interval}, State#pengine_state{ping_timer = Timer}};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -202,6 +209,21 @@ handle_cast(_Msg, State) ->
 %% @doc
 %% Handling all non call/cast messages
 -spec handle_info(timeout | term(), pengine_state()) -> {noreply, pengine_state()}.
+handle_info({ping_timeout, Interval}, State) ->
+    {ok, Res} = pengine_pltp_http:ping(State#pengine_state.id, State#pengine_state.server, "json"),
+    case ping_verdict(Res) of 
+        true -> 
+            Status = maps:get(<<"status">>, maps:get(<<"data">>, Res)),
+            lager:info("ping timeout, pengine answered ping, status: ~p", [Status]),
+            erlang:cancel_timer(State#pengine_state.ping_timer),
+            Timer = erlang:send_after(Interval*1000, self(), {ping_timeout, Interval}),
+            {noreply, State#pengine_state{ping_timer = Timer}};
+        false ->
+            erlang:cancel_timer(State#pengine_state.ping_timer),
+            lager:info("Bad ping response from pengine: ~p", [Res]),
+            {stop, normal, State}
+    end;
+
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -360,3 +382,12 @@ get_create_query(#{<<"answer">> := QueryRes}, State) ->
 
 get_create_query(_, State) ->
     {{no_create_query}, State}.
+
+%% @doc
+%% @private
+%% utility function that checks based on ping if pengine should be considered dead.
+-spec ping_verdict(map()) -> boolean().
+ping_verdict(#{<<"event">> := <<"ping">>})->
+    true;
+ping_verdict(#{<<"event">> := D}) when D =/= <<"ping">> ->
+    false.

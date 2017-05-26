@@ -22,7 +22,7 @@
 %%===================================================================
 
 init_per_suite(Config) ->
-    case os:cmd("prolog ~/workspace/erlang/erlang_pengine/prolog/daemon.pl --http=4000 --pidfile=/home/kim/workspace/erlang/erlang_pengine/prolog/pid/http.pid") of
+    case os:cmd("current_dir=$PWD; cd /home/kim/workspace/erlang/erlang_pengine/prolog; prolog daemon.pl --http=4000 --pidfile=/home/kim/workspace/erlang/erlang_pengine/prolog/pid/http.pid; cd $current_dir") of
         [] -> 
             application:ensure_all_started(erlang_pengine),
             Config;
@@ -57,7 +57,9 @@ all() ->
      test_list_pengines,
      test_stop,
      test_prompt,
-     test_output
+     test_output,
+     test_inject_source,
+     test_inject_source_via_url
     ].
 
 
@@ -92,7 +94,8 @@ test_destroy(_Config)->
 %% test ping request to a slave pengine
 test_ping(_Config)->
     {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", #{}),
-    ?assertMatch({ping_response, Id1, _Data}, pengine:ping(P1, 10)),
+    ?assertMatch({ping_response, Id1, _Data}, pengine:ping(P1, 0)),
+    ?assertMatch({ping_interval_set, 10}, pengine:ping(P1, 10)),
     pengine_master:kill_all_pengines().
 
 %% test id() function
@@ -212,14 +215,69 @@ test_output(_Config)->
     Options = #{destroy => true, application => "pengine_sandbox", chunk => 1, format => json},
     {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
     {
-      {output,<<"output_test_success">>},
-      {pull_response,
-       {
-         {success,Id1,[[]],false},
-         {pengine_destroyed, _Reason}}
+      {
+        output,<<"output_test_success">>
+      },
+      {
+        pull_response,
+        {
+          {
+            success,
+            Id1,
+            [[]],
+            false
+          },
+          {
+            pengine_destroyed, 
+            _Reason1
+          }
+        }
       }
     } 
-        = pengine:ask(P1, "output_test", #{template => "[]", chunk => "1"}).
+        = pengine:ask(P1, "output_test", #{template => "[]", chunk => "1"}),
+    {{ok, {P2, Id2}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
+    {
+      {output,<<"output_test2_first">>},
+      {
+        pull_response,
+       {
+         {
+           output,<<"output_test2_second">>},
+         {
+           pull_response,
+          {
+            {
+              success,
+              Id2,
+              [[<<"done">>]],
+              false
+            },
+         {
+           pengine_destroyed,
+          _Reason2
+         }
+          }
+         }
+       }
+      }
+    } 
+        = pengine:ask(P2, "output_test2(X)", #{template => "[X]", chunk => "1"}).
+
+test_inject_source(_Config) ->
+    Options1 = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json, src_text => "pengine(pingu).\n"},
+    {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options1),
+    {success, Id1, [[<<"pingu">>]], false} = pengine:ask(P1, "pengine(X)", #{template => "[X]", chunk => "1"}),
+    {ok, File} = file:read_file("/home/kim/workspace/erlang/erlang_pengine/prolog/src_text.pl"),
+    Options2 = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json, src_text => File},
+    {{ok, {P2, Id2}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options2),
+    {success, Id2, [[<<"pingu">>], [<<"pongi">>], [<<"pingo">>], [<<"pinga">>]], false} = pengine:ask(P2, "pengine_child(X)", #{template => "[X]", chunk => "10"}),
+    {success, Id2, [[<<"papa">>, <<"pingu">>], [<<"mama">>, <<"pongi">>]], false} = pengine:ask(P2, "pengine_master(X, Y)", #{template => "[X, Y]", chunk => "10"}),
+    pengine_master:kill_all_pengines().
+
+test_inject_source_via_url(_Config)->
+    Options1 = #{destroy => true, application => "pengine_sandbox", chunk => 1, format => json, src_url => "http://127.0.0.1:4000/src_url.pl"},
+    {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options1),
+    {{success, Id1, [[<<"success">>]], false}, {pengine_destroyed, _Reason}} = pengine:ask(P1, "src_url_test(X)", #{template => "[X]", chunk => "1"}).
 
 %%===================================================================
 %% Internal functions

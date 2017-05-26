@@ -16,11 +16,13 @@
            stop/1,
            long_query/1,
            prompt_test/1,
-           output_test/0
+           output_test/0,
+           output_test2/1
           ]).
 
 :- use_module(library(http/thread_httpd)).
 :- use_module(library(http/http_dispatch)).
+:- use_module(library(http/http_files)).
 :- use_module(library(pengines)).
 :- use_module(pengine_sandbox:library(pengines)).
 :- use_module(pengine_sandbox:library(lists)).
@@ -33,6 +35,7 @@ sandbox:sandbox_allowed_goal(long_query(_)).
 sandbox:sandbox_allowed_goal(prompt_test(_)).
 sandbox:sandbox_allowed_goal(output_test).
 
+:- http_handler(root(.), http_reply_from_files('./static/', []), [prefix]).
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -66,3 +69,10 @@ prompt_test(prompt_test_success(Input)):-
 %% output_test.
 output_test:-
     pengine_output(output_test_success).
+
+%% Sends Two terms to the parent pengine or thread.
+%% output_test2(-).
+%% output_test2(_).
+output_test2(done):-
+    pengine_output(output_test2_first),
+    pengine_output(output_test2_second).

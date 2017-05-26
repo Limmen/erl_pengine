@@ -36,12 +36,14 @@
 
 %% pengine create options
 -type pengine_create_options():: #{
-                              application => string(),
-                              ask => string(),
-                              template => string(),
+                              application => binary() | string(),
+                              ask => binary() | string(),
+                              template => binary() | string(),
                               chunk => integer(),
                               destroy => boolean(),
-                              format => string()
+                              format => binary() | string(),
+                              src_text => binary() | string(),
+                              src_url => binary() | string()
                              }.
 
 %%====================================================================

@@ -8,7 +8,8 @@
 %% state of the pengine, see http://pengines.swi-prolog.org/docs/documentation.html for documentation.
 -record(pengine_state, {
           server :: string(),
-          id :: binary()
+          id :: binary(),
+          ping_timer = make_ref() :: reference()
          }).
 
 %% state of the master process
