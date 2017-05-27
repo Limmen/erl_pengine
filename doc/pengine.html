@@ -10,37 +10,89 @@
 <hr>
 
 <h1>Module pengine</h1>
-<ul class="index"><li><a href="#description">Description</a></li><li><a href="#types">Data Types</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>erlang_pengine_server server.
+<ul class="index"><li><a href="#description">Description</a></li><li><a href="#types">Data Types</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>pengine gen_server.
 <p>Copyright © (C) 2017, Kim Hammar</p>
 
 <p><b>Behaviours:</b> <a href="gen_server.html"><tt>gen_server</tt></a>.</p>
 <p><b>Authors:</b> Kim Hammar (<a href="mailto:kimham@kth.se"><tt>kimham@kth.se</tt></a>).</p>
 
-<h2><a name="description">Description</a></h2>erlang_pengine_server server
+<h2><a name="description">Description</a></h2>pengine gen_server. Controls a pengine slave
 <h2><a name="types">Data Types</a></h2>
 
-<h3 class="typedecl"><a name="type-pengine_create_options">pengine_create_options()</a></h3>
-<p><tt>pengine_create_options() = #{application =&gt; string(), ask =&gt; string(), template =&gt; string(), chunk =&gt; integer(), destroy =&gt; boolean(), format =&gt; string()}</tt></p>
+<h3 class="typedecl"><a name="type-abort_response">abort_response()</a></h3>
+<p><tt>abort_response() = {aborted, Id::binary()} | {{aborted, Id::binary()}, <a href="#type-destroy_response">destroy_response()</a>}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-ask_response">ask_response()</a></h3>
+<p><tt>ask_response() = {<a href="#type-query_response">query_response()</a>, <a href="#type-destroy_response">destroy_response()</a>} | <a href="#type-query_response">query_response()</a> | {<a href="#type-output_response">output_response()</a>, <a href="#type-destroy_response">destroy_response()</a>} | <a href="#type-output_response">output_response()</a></tt></p>
+
+
+<h3 class="typedecl"><a name="type-create_response">create_response()</a></h3>
+<p><tt>create_response() = {{ok, {PengineProcess::pid(), Id::binary()}}, {no_create_query}} | {{ok, {PengineProcess::pid(), Id::binary()}}, {no_create_query}} | {{ok, {PengineProcess::pid(), Id::binary()}}, <a href="#type-query_response">query_response()</a>} | {{error, {max_limit, Reason::any()}}, <a href="#type-destroy_response">destroy_response()</a>}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-destroy_response">destroy_response()</a></h3>
+<p><tt>destroy_response() = {pengine_destroyed, Reason::any()}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-died_response">died_response()</a></h3>
+<p><tt>died_response() = {pengine_died, Reason::any()}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-error_response">error_response()</a></h3>
+<p><tt>error_response() = {error, Id::binary(), Reason::binary(), Code::binary()}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-output_response">output_response()</a></h3>
+<p><tt>output_response() = {{output, PrologOutput::any()}, {pull_response, <a href="#type-ask_response">ask_response()</a>}}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-ping_response">ping_response()</a></h3>
+<p><tt>ping_response() = {ping_response, Id::binary(), Data::#{}} | {ping_interval_set, Interval::integer()}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-prompt_response">prompt_response()</a></h3>
+<p><tt>prompt_response() = {prompt, Id::binary(), Data::binary()}</tt></p>
 
 
 <h3 class="typedecl"><a name="type-query_options">query_options()</a></h3>
 <p><tt>query_options() = #{template := string(), chunk := integer()}</tt></p>
 
 
+<h3 class="typedecl"><a name="type-query_response">query_response()</a></h3>
+<p><tt>query_response() = {failure, Id::binary()} | {success, Id::binary(), Data::list(), More::boolean()}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-response">response()</a></h3>
+<p><tt>response() = <a href="#type-create_response">create_response()</a> | <a href="#type-ask_response">ask_response()</a> | <a href="#type-destroy_response">destroy_response()</a> | <a href="#type-ping_response">ping_response()</a> | <a href="#type-died_response">died_response()</a> | <a href="#type-abort_response">abort_response()</a> | <a href="#type-stop_response">stop_response()</a> | <a href="#type-error_response">error_response()</a> | <a href="#type-prompt_response">prompt_response()</a></tt></p>
+
+
+<h3 class="typedecl"><a name="type-stop_response">stop_response()</a></h3>
+<p><tt>stop_response() = {stopped, Id::binary()}</tt></p>
+
+
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#ask-2">ask/2</a></td><td>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#ask-3">ask/3</a></td><td>
   Runs query in search for the first solution.</td></tr>
-<tr><td valign="top"><a href="#id-0">id/0</a></td><td>
+<tr><td valign="top"><a href="#destroy-1">destroy/1</a></td><td>
+  Destroys the pengine.</td></tr>
+<tr><td valign="top"><a href="#id-1">id/1</a></td><td>
   Returns the id of the pengine (a string).</td></tr>
+<tr><td valign="top"><a href="#next-1">next/1</a></td><td>
+  Triggers a search for the next solution.</td></tr>
+<tr><td valign="top"><a href="#ping-2">ping/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#respond-2">respond/2</a></td><td>
+  Inputs a term in response to a prompt from an invocation of pengine_input/2
+  that is now waiting to receive data from the outside.</td></tr>
 <tr><td valign="top"><a href="#start_link-1">start_link/1</a></td><td>
   Starts the server.</td></tr>
 </table>
 
 <h2><a name="functions">Function Details</a></h2>
 
-<h3 class="function"><a name="ask-2">ask/2</a></h3>
+<h3 class="function"><a name="ask-3">ask/3</a></h3>
 <div class="spec">
-<p><tt>ask(Query::string(), Options::<a href="#type-query_options">query_options()</a>) -&gt; atom()</tt><br></p>
+<p><tt>ask(Pengine::pid(), Query::string(), Options::<a href="#type-query_options">query_options()</a>) -&gt; <a href="#type-ask_response">ask_response()</a> | <a href="#type-error_response">error_response()</a></tt><br></p>
 </div><p>
   Runs query in search for the first solution.
   Throws an error if the query is syntactically or semantically malformed
@@ -51,13 +103,38 @@
   chunk :: integer() :
   The maximum number of solutions to retrieve in one chunk. 1 means no chunking (default).</p>
 
-<h3 class="function"><a name="id-0">id/0</a></h3>
+<h3 class="function"><a name="destroy-1">destroy/1</a></h3>
 <div class="spec">
-<p><tt>id() -&gt; integer()</tt><br></p>
+<p><tt>destroy(Pengine::pid()) -&gt; <a href="#type-destroy_response">destroy_response()</a> | <a href="#type-error_response">error_response()</a></tt><br></p>
+</div><p>
+  Destroys the pengine.</p>
+
+<h3 class="function"><a name="id-1">id/1</a></h3>
+<div class="spec">
+<p><tt>id(Pengine::pid()) -&gt; Id::binary()</tt><br></p>
 </div><p>
   Returns the id of the pengine (a string).
   Note that the pengine must have been created before this field will have a
   non-null value, i.e. the oncreate handler must have been called.</p>
+
+<h3 class="function"><a name="next-1">next/1</a></h3>
+<div class="spec">
+<p><tt>next(Pengine::pid()) -&gt; <a href="#type-ask_response">ask_response()</a> | <a href="#type-error_response">error_response()</a></tt><br></p>
+</div><p>
+  Triggers a search for the next solution.</p>
+
+<h3 class="function"><a name="ping-2">ping/2</a></h3>
+<div class="spec">
+<p><tt>ping(Pengine::pid(), Interval::integer()) -&gt; <a href="#type-ping_response">ping_response()</a> | <a href="#type-error_response">error_response()</a></tt><br></p>
+</div>
+
+<h3 class="function"><a name="respond-2">respond/2</a></h3>
+<div class="spec">
+<p><tt>respond(Pengine::pid(), PrologTerm::list()) -&gt; <a href="#type-ask_response">ask_response()</a> | <a href="#type-error_response">error_response()</a></tt><br></p>
+</div><p>
+  Inputs a term in response to a prompt from an invocation of pengine_input/2
+  that is now waiting to receive data from the outside.
+  Throws an error if string cannot be parsed as a Prolog term or if object cannot be serialised into JSON.</p>
 
 <h3 class="function"><a name="start_link-1">start_link/1</a></h3>
 <div class="spec">
@@ -67,6 +144,6 @@
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, May 12 2017, 20:32:00.</i></p>
+<p><i>Generated by EDoc, May 27 2017, 09:04:00.</i></p>
 </body>
 </html>

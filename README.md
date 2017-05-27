@@ -1,6 +1,6 @@
-# erlang_pengine
+# erl_pengine (v0.1.0)
 
-## Description
+## Overview
 
 **ErlangPengine**
 
@@ -9,130 +9,87 @@ For more information about the pengine project see the following links.
 
 * [http://pengines.swi-prolog.org/docs/documentation.html](http://pengines.swi-prolog.org/docs/documentation.html)
 * [http://www.swi-prolog.org/pldoc/doc_for?object=section(%27packages/pengines.html%27)](http://www.swi-prolog.org/pldoc/doc_for?object=section(%27packages/pengines.html%27))
+* [paper](paper/pengines.pdf)
 
-## Installation
+EDoc link:
 
-```bash
-# build
-$ ./rebar3 compile
+* [Edoc](doc/index.html) 
 
-```
-## Usage
+### Features
+
+Pengines is short for Prolog Engines, it's a package which allows you to talk to remote prolog servers in a simple
+and effective way. 
+
+With a pengines client you can access pretty much the full prolog power remotely. You write your pengine-server and
+make it export the predicates you desire as accessible from remote and then you can access it.
+
+If you are looking for just basic prolog access, you should look at [erlog](https://github.com/rvirding/erlog) which is 
+a prolog in interpreter for a subset of the prolog standard in erlang.
+
+If you need access to full prolog-power like access to a CLP-solver, a semantic-web server or similar, a pengine-client is a good
+way to do it.
+
+Other pengine clients:
+
+* [JavaScriptPengine](http://pengines.swi-prolog.org/docs/index.html)
+* [RubyPengine](https://github.com/simularity/RubyPengine)
+* [JavaPengine](https://github.com/simularity/JavaPengine)
+
+### Useful Modules
+
+* `erl_pengine.erl`: entrypoint module, application callback module, start with `application:start(erl_pengine)`
+* `pengine.erl`: main API for a created slave-pengine
+* `pengine_master`: API for administering active pengines and also creating new ones
+
+## QuickStart Usage
+
+ **Add to rebar3 project**
+
+**TODO**: The package is published at [hex.pm](hex.pm)
+You can add  it to your project by putting the following to your list of dependencies in `rebar.config`:
+ ```erlang
+   {deps, [
+          {erl_pengine, "0.1.0"}
+   ]}.
+
+ ```
+ 
+ Or add it as a github dependency:
+ 
+ ```erlang
+  {deps, [
+         {erl_pengine, {git, "https://github.com/Limmen/erl_pengine"}}
+  ]}.
+  ```
+ 
+ **Start application**
+ 
+  ```erlang
+ 
+  ```
+ 
+ **Using the API**
+ 
+   ```erlang
+  
+   ```
+   
+## API
+
+## Examples
 
 ```erlang
-{ok, {P1, Id1}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", test_callbackmod, #{}).
-
-{ok, {P2, Id2}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", test_callbackmod, #{}).
-
-Pengines = pengine_master:list_pengines().
-
-pengine:next(P1).
-
-5> {ok, _StatusCode, _Headers, ClientRef} = hackney:post(<<"http://127.0.0.1:4000/pengine/send?format=json&id=38612376351347808823784683757103067622">>, [{<<"Content-Type">>, <<"application/x-prolog; charset=utf-8">>}], <<"destroy.\n">>, []).
-{ok,200,
-    [{<<"Date">>,<<"Thu, 18 May 2017 09:43:45 GMT">>},
-     {<<"Connection">>,<<"Keep-Alive">>},
-     {<<"Cache-Control">>,
-      <<"no-cache, no-store, must-revalidate">>},
-     {<<"Pragma">>,<<"no-cache">>},
-     {<<"Expires">>,<<"0">>},
-     {<<"Content-Type">>,<<"application/json; charset=UTF-8">>},
-     {<<"Content-Length">>,<<"66">>}],
-    #Ref<0.0.1.7561>}
-6> hackney:body(ClientRef).
-{ok,<<"{\"event\":\"destroy\", \"id\":\"38612376351347808823784683757103067622\"}">>}
-7>
-
-{ok, StatusCode, Headers, ClientRef} = hackney:get(<<"http://127.0.0.1:4000/pengine/ping">>, [{<<"Content-Type">>, <<"application/json; charset=utf-8">>}, {<<"Accept">>, <<"application/json">>}], jsx:encode(#{id => Id1, format => "json"}), []).
-
-{ok, StatusCode, Headers, ClientRef} = hackney:post(<<"http://127.0.0.1:4000/pengine/create">>, [{<<"Content-Type">>, <<"application/json; charset=utf-8">>}, {<<"Accept">>, <<"application/json">>}], jsx:encode(#{application => "pengine_sandbox", chunk => 1, destroy => true, format => json}), []).
-
-
-7> {ok, StatusCode1, Headers1, ClientRef1} = hackney:get(<<"http://127.0.0.1:4000/pengine/ping?id=27aacaba-42fd-4eb6-9157-ae5229cc7ae4">>, [{<<"Content-Type">>, <<"application/json; charset=utf-8">>}, {<<"Accept">>, <<"application/json">>}], <<>>, []).
-{ok,200,
-    [{<<"Date">>,<<"Sun, 21 May 2017 09:50:04 GMT">>},
-     {<<"Content-Type">>,<<"text/x-prolog; charset=UTF-8">>},
-     {<<"Connection">>,<<"Keep-Alive">>},
-     {<<"Content-Length">>,<<"428">>}],
-    #Ref<0.0.1.643>}
-8> {ok, Body} = hackney:body(ClientRef1).
-{ok,<<"ping('27aacaba-42fd-4eb6-9157-ae5229cc7ae4',thread{id:12,stacks:stacks{global:stack{allocated:61424,limit:26"...>>}
-9> Body.
-<<"ping('27aacaba-42fd-4eb6-9157-ae5229cc7ae4',thread{id:12,stacks:stacks{global:stack{allocated:61424,limit:268435456,"...>>
-10> io:format("~p", [Body]).
-<<"ping('27aacaba-42fd-4eb6-9157-ae5229cc7ae4',thread{id:12,stacks:stacks{global:stack{allocated:61424,limit:268435456,name:global,usage:2224},local:stack{allocated:28672,limit:268435456,name:local,usage:1408},total:stack{allocated:120808,limit:805306368,name:stacks,usage:4296},trail:stack{allocated:30712,limit:268435456,name:trail,usage:664}},status:running,time:time{cpu:0.023156854,epoch:1495360028.0125349,inferences:199}}).\n">>ok
-
-
-{ok, _, _, Ref} = hackney:get(<<"http://127.0.0.1:4000/pengine/ping?id=270304608653608517179799704002611518790&format=json">>, [], <<>>, [])
 
 ```
 
-```bash
+## Contribute
 
-curl --data "event=destroy.\n" -H "Content-Type: application/x-prolog" "http://localhost:4000/pengine/send?format=json&id='159039462391028399231340666254676513087'"
+Contributions are welcome, for bugreports please use github issues.
 
-curl --data "event=destroy.\n" -H "Content-Type: application/x-prolog" "http://localhost:4000/pengine/send?format=json&id=26520944056946901811031529588524459285"
+### Most useful project commands
 
-curl --data "id=&format=json" -H "Content-Type: application/json" "http://localhost:4000/pengine/ping"
+It's a rebar3 project so all commands listed here: [rebar3 commands](https://www.rebar3.org/docs/commands) are available.
 
-curl http://localhost:4000/pengine/ping -d '{"id" : , "format": "json"}'
-
-curl http://localhost:4000/pengine/create
-
-
-curl http://localhost:4000/pengine/create
-
-
-kim@limmen ~> curl "http://localhost:4000/pengine/ping?id=2ab11b38-21fb-4a8b-bc2d-ca78bcc78f4f"
-ping('2ab11b38-21fb-4a8b-bc2d-ca78bcc78f4f',thread{id:12,stacks:stacks{global:stack{allocated:61424,limit:268435456,name:global,usage:2184},local:stack{allocated:28672,limit:268435456,name:local,usage:1408},total:stack{allocated:120808,limit:805306368,name:stacks,usage:4256},trail:stack{allocated:30712,limit:268435456,name:trail,usage:664}},status:running,time:time{cpu:0.037169991,epoch:1495358455.875498,inferences:197}}).
-kim@limmen ~> curl "http://localhost:4000/pengine/ping?id=2ab11b38-21fb-4a8b-bc2d-ca78bcc78f"
-died('2ab11b38-21fb-4a8b-bc2d-ca78bcc78f').
-kim@limmen ~> curl "http://localhost:4000/pengine/ping?id=2ab11b38-21fb-4a8b-bc2d-ca78bcc78f4f"
-ping('2ab11b38-21fb-4a8b-bc2d-ca78bcc78f4f',thread{id:12,stacks:stacks{global:stack{allocated:61424,limit:268435456,name:global,usage:2184},local:stack{allocated:28672,limit:268435456,name:local,usage:1408},total:stack{allocated:120808,limit:805306368,name:stacks,usage:4256},trail:stack{allocated:30712,limit:268435456,name:trail,usage:664}},status:running,time:time{cpu:0.038939034,epoch:1495358455.875498,inferences:197}}).
-
-curl -H "Accept: application/json" -H "Content-Type: application/json" "http://localhost:4000/pengine/ping?id=f04494dc-2ef7-4dd5-96e2-dfcb33dcdfcc"
-
-kim@limmen ~> curl -H "Accept: application/json" -H "Content-Type: application/json" "http://localhost:4000/pengine/ping?id=d21082f3-4b7a-4e50-81f5-5047a621f51e&format=json"
-{
-  "data": {
-    "id":10,
-    "stacks": {
-      "global": {
-	"allocated":61424,
-	"limit":268435456,
-	"name":"global",
-	"usage":2184
-      },
-      "local": {
-	"allocated":28672,
-	"limit":268435456,
-	"name":"local",
-	"usage":1408
-      },
-      "total": {
-	"allocated":120808,
-	"limit":805306368,
-	"name":"stacks",
-	"usage":4256
-      },
-      "trail": {
-	"allocated":30712,
-	"limit":268435456,
-	"name":"trail",
-	"usage":664
-      }
-    },
-    "status":"running",
-    "time": {"cpu":0.010129046, "epoch":1495361227.2084138, "inferences":197}
-  },
-  "event":"ping",
-  "id":"d21082f3-4b7a-4e50-81f5-5047a621f51e"
-}⏎                                                                                    kim@limmen ~> 
-
-
-```
-
-## Project commands
 ```bash
 # build
 $ ./rebar3 compile
@@ -140,8 +97,20 @@ $ ./rebar3 compile
 # remove temporary files
 $ ./rebar3 clean
 
-# run tests
+# run unit tests
+$ ./rebar3 eunit
+
+# run system tests, note that the test-suite uses absolute path to a prolog-pengine server.
+$ ./rebar3 ct 
+
+# run static code analysis
+$ ./rebar3 dialyzer 
+
+# alias to run all tests
 $ ./rebar3 alias testall
+
+# alias to run the ci-check which travis will run upon git push
+$ ./rebar3 alias ci
 
 # validate codebase, runs: tests, linters, static code analysis
 $ ./rebar3 alias validate
@@ -153,16 +122,15 @@ $ ./rebar3 edoc
 $ ./rebar3 shell
 
 # Start shell with configuration
-$ rebar3 shell --config erlang_pengine.config
-
-# Start shell with application loaded and listen for code changes
-$ ./rebar3 auto
+$ rebar3 shell --config erl_pengine.config
 
 # Run release
 $ ./rebar3 run
 
 ```
 
+Make sure that any PR first passes dialyzer, linter and tests.
+ 
 ## Author & Maintainer
 
 Kim Hammar <kimham@kth.se>

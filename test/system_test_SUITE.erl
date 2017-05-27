@@ -1,7 +1,7 @@
 %%%-------------------------------------------------------------------
 %% @author Kim Hammar <kimham@kth.se>
 %% @copyright (C) 2017, Kim Hammar
-%% @doc Systems tests for erlang_pengine. 
+%% @doc Systems tests for erl_pengine. 
 %% Before suit start it starts prolog server to interact with to 
 %% create pengines.
 %% @end
@@ -22,9 +22,9 @@
 %%===================================================================
 
 init_per_suite(Config) ->
-    case os:cmd("current_dir=$PWD; cd /home/kim/workspace/erlang/erlang_pengine/prolog; prolog daemon.pl --http=4000 --pidfile=/home/kim/workspace/erlang/erlang_pengine/prolog/pid/http.pid; cd $current_dir") of
+    case os:cmd("current_dir=$PWD; cd /home/kim/workspace/erlang/erl_pengine/prolog; prolog daemon.pl --http=4000 --pidfile=/home/kim/workspace/erlang/erl_pengine/prolog/pid/http.pid; cd $current_dir") of
         [] -> 
-            application:ensure_all_started(erlang_pengine),
+            application:ensure_all_started(erl_pengine),
             Config;
         Error ->
             {skip,{"Could not start pengine server", Error}}
@@ -32,8 +32,8 @@ init_per_suite(Config) ->
     end.
 
 end_per_suite(Config) ->
-    application:stop(erlang_pengine),
-    os:cmd("cat ~/workspace/erlang/erlang_pengine/prolog/pid/http.pid | xargs kill -9"),
+    application:stop(erl_pengine),
+    os:cmd("cat ~/workspace/erlang/erl_pengine/prolog/pid/http.pid | xargs kill -9"),
     Config.
 
 init_per_testcase(Case, Config) ->
@@ -267,7 +267,7 @@ test_inject_source(_Config) ->
     Options1 = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json, src_text => "pengine(pingu).\n"},
     {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options1),
     {success, Id1, [[<<"pingu">>]], false} = pengine:ask(P1, "pengine(X)", #{template => "[X]", chunk => "1"}),
-    {ok, File} = file:read_file("/home/kim/workspace/erlang/erlang_pengine/prolog/src_text.pl"),
+    {ok, File} = file:read_file("/home/kim/workspace/erlang/erl_pengine/prolog/src_text.pl"),
     Options2 = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json, src_text => File},
     {{ok, {P2, Id2}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options2),
     {success, Id2, [[<<"pingu">>], [<<"pongi">>], [<<"pingo">>], [<<"pinga">>]], false} = pengine:ask(P2, "pengine_child(X)", #{template => "[X]", chunk => "10"}),

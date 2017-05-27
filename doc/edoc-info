@@ -1,3 +1,4 @@
 %% encoding: UTF-8
-{application,erlang_pengine}.
-{modules,[erlang_pengine,erlang_pengine_sup,pengine,pengine_http]}.
+{application,erl_pengine}.
+{modules,[erl_pengine,erl_pengine_sup,pengine,pengine_master,
+          pengine_pltp_http,pengine_sup,table_mngr]}.

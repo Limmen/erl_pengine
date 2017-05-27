@@ -18,7 +18,7 @@
 
 %% @doc
 %% Ping the status of the pengine.
-%% If Interval < 0, send a single ping.
+%% If Interval = 0, send a single ping.
 %% If Interval > 0, set/change periodic ping event, if 0, clear periodic interval
 -spec ping(binary(), string(), string()) -> {ok, map()} |
                                             {error, any()}.

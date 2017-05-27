@@ -1,0 +1,96 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Module pengine_master</title>
+<link rel="stylesheet" type="text/css" href="stylesheet.css" title="EDoc">
+</head>
+<body bgcolor="white">
+<div class="navbar"><a name="#navbar_top"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<hr>
+
+<h1>Module pengine_master</h1>
+<ul class="index"><li><a href="#description">Description</a></li><li><a href="#types">Data Types</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>pengine_master gen_server.
+<p>Copyright © (C) 2017, Kim Hammar</p>
+
+<p><b>Behaviours:</b> <a href="gen_server.html"><tt>gen_server</tt></a>.</p>
+<p><b>Authors:</b> Kim Hammar (<a href="mailto:kimham@kth.se"><tt>kimham@kth.se</tt></a>).</p>
+
+<h2><a name="description">Description</a></h2>pengine_master gen_server. Master process that controls and
+  manages the erlang-processes that are connected to pengine-slaves
+<h2><a name="types">Data Types</a></h2>
+
+<h3 class="typedecl"><a name="type-master_state">master_state()</a></h3>
+<p><tt>master_state() = #master_state{}</tt></p>
+
+
+<h3 class="typedecl"><a name="type-pengine_create_options">pengine_create_options()</a></h3>
+<p><tt>pengine_create_options() = #{application =&gt; binary() | string(), ask =&gt; binary() | string(), template =&gt; binary() | string(), chunk =&gt; integer(), destroy =&gt; boolean(), format =&gt; binary() | string(), src_text =&gt; binary() | string(), src_url =&gt; binary() | string()}</tt></p>
+
+
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#abort-2">abort/2</a></td><td>
+  Terminates the running query of a busy pengine by force.</td></tr>
+<tr><td valign="top"><a href="#create_pengine-2">create_pengine/2</a></td><td>
+  Creates pengine with given options.</td></tr>
+<tr><td valign="top"><a href="#kill_all_pengines-0">kill_all_pengines/0</a></td><td>
+  Kill all active pengines.</td></tr>
+<tr><td valign="top"><a href="#list_pengines-0">list_pengines/0</a></td><td>
+  Returns list of active pengines.</td></tr>
+<tr><td valign="top"><a href="#lookup_pengine-1">lookup_pengine/1</a></td><td>
+  Lookup pengin pid based on id.</td></tr>
+<tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>
+  Starts the server.</td></tr>
+<tr><td valign="top"><a href="#stop-2">stop/2</a></td><td>
+  Tells a busy pengine to stop searching for solutions.</td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="abort-2">abort/2</a></h3>
+<div class="spec">
+<p><tt>abort(Id::binary(), Server::string()) -&gt; <a href="pengine.html#type-abort_response">pengine:abort_response()</a> | <a href="pengine.html#type-error_response">pengine:error_response()</a></tt><br></p>
+</div><p>
+  Terminates the running query of a busy pengine by force</p>
+
+<h3 class="function"><a name="create_pengine-2">create_pengine/2</a></h3>
+<div class="spec">
+<p><tt>create_pengine(Server::string(), CreateOptions::<a href="pengine.html#type-pengine_create_options">pengine:pengine_create_options()</a>) -&gt; <a href="pengine.html#type-create_response">pengine:create_response()</a> | <a href="pengine.html#type-error_response">pengine:error_response()</a></tt><br></p>
+</div><p>
+  Creates pengine with given options</p>
+
+<h3 class="function"><a name="kill_all_pengines-0">kill_all_pengines/0</a></h3>
+<div class="spec">
+<p><tt>kill_all_pengines() -&gt; ok</tt><br></p>
+</div><p>
+  Kill all active pengines</p>
+
+<h3 class="function"><a name="list_pengines-0">list_pengines/0</a></h3>
+<div class="spec">
+<p><tt>list_pengines() -&gt; list()</tt><br></p>
+</div><p>
+  Returns list of active pengines</p>
+
+<h3 class="function"><a name="lookup_pengine-1">lookup_pengine/1</a></h3>
+<div class="spec">
+<p><tt>lookup_pengine(Id::binary()) -&gt; pid()</tt><br></p>
+</div><p>
+  Lookup pengin pid based on id</p>
+
+<h3 class="function"><a name="start_link-0">start_link/0</a></h3>
+<div class="spec">
+<p><tt>start_link() -&gt; {ok, pid()}</tt><br></p>
+</div><p>
+  Starts the server</p>
+
+<h3 class="function"><a name="stop-2">stop/2</a></h3>
+<div class="spec">
+<p><tt>stop(Id::binary(), Server::string()) -&gt; <a href="pengine.html#type-stop_response">pengine:stop_response()</a> | <a href="pengine.html#type-error_response">pengine:error_response()</a></tt><br></p>
+</div><p>
+  Tells a busy pengine to stop searching for solutions. Terminates the running query gracefully.</p>
+<hr>
+
+<div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<p><i>Generated by EDoc, May 27 2017, 09:04:00.</i></p>
+</body>
+</html>

@@ -79,7 +79,7 @@ ping_test_()->
                                             <<"id">> := Id,
                                             <<"data">> := _
                                            }},
-                                         pengine_pltp_http:ping(Id, "127.0.0.1:4000/pengine", "json", 0))
+                                         pengine_pltp_http:ping(Id, "127.0.0.1:4000/pengine", "json"))
                     end
                    ]
                          }
