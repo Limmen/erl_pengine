@@ -8,12 +8,25 @@
 -module(semweb).
 
 %% API exports
--export([]).
+-export([supervises/0]).
 
 %%====================================================================
 %% API functions
 %%====================================================================
-
+-spec supervises() -> any().
+supervises()->
+    Options = #{
+      destroy => true, 
+      application => "pengine_sandbox", 
+      chunk => 10, 
+      format => json, 
+      ask => "supervises(X, Y)"
+     },
+    {{ok, {pengine_destroyed, Id}}, 
+     {create_query, {
+        {success, Id, Result, false},
+        {pengine_destroyed, _}}}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
+    lists:foldl(fun(#{<<"X">> := X, <<"Y">> := Y}, A) -> [{X, supervises, Y}|A] end, [], Result).
 
 %%====================================================================
 %% Internal functions

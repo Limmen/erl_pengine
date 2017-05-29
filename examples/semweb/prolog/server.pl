@@ -13,7 +13,8 @@
 :- module(pengine_server,
           [
            server/1,
-           stop/1
+           stop/1,
+           supervises/2
           ]).
 
 :- use_module(library(clpfd)).
@@ -29,7 +30,8 @@
 
 %% Safe predicates accessible from remote client
 sandbox:safe_primitive(lists:member(_,_)).
-sandbox:sandbox_allowed_goal(sudoku(_)).
+sandbox:safe_primitive(rdf_db:rdf(_,_,_)).
+sandbox:sandbox_allowed_goal(supervises(_,_)).
 
 %%%===================================================================
 %%% API
@@ -51,4 +53,4 @@ stop(Port):-
 %% supervises(+-,+-).
 %% supervises(Supervisor, Process).
 supervises(X,Y):-
-    rdf(X, 'http://www.limmen.kth.se/ontologies/erl_pengine#supervises', Y).
+    rdf_db:rdf(X, 'http://www.limmen.kth.se/ontologies/erl_pengine#supervises', Y).

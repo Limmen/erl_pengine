@@ -15,7 +15,7 @@
 
 %% Query a pengine for a solution to a sudoku instance specified in 
 %% Src input (prolog source).
--spec solve_sudoku(binary()) -> ok.
+-spec solve_sudoku(binary()) -> list().
 solve_sudoku(Src)->
     Options = #{
       destroy => true, 
@@ -25,17 +25,9 @@ solve_sudoku(Src)->
       src_text => Src,
       ask => "problem(1, Rows), sudoku(Rows)"
      },
-    {{ok, {_, Id}}, {create_query, {success, Id, [#{<<"Rows">> := Rows}], true}}} = 
+    {{ok, {pengine_destroyed, Id}}, 
+     {create_query, {
+        {success, Id, [#{<<"Rows">> := Rows}], false},
+        {pengine_destroyed, _}}}} = 
         pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
-    print_solution(Rows).
-
-%%====================================================================
-%% Internal functions
-%%====================================================================
-
-%% print sudoku solution
--spec print_solution(list()) -> ok.
-print_solution(Rows)->
-    io:format("Sudoku solution: ~n"),
-    lists:map(fun(Row) -> io:format("~p~n", [Row]) end, Rows),
-    ok.
+    Rows.
