@@ -1,5 +1,6 @@
 .rebar3
-rebar*
+rebar.*
+rebar3.*
 _*
 .eunit
 *.o
