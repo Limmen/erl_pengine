@@ -394,13 +394,13 @@ $ ./rebar3 ct
 $ ./rebar3 dialyzer 
 
 # alias to run all tests
-$ ./rebar3 alias testall
+$ ./rebar3 testall
 
 # alias to run the ci-check which travis will run upon git push
-$ ./rebar3 alias ci
+$ ./rebar3 ci
 
 # validate codebase, runs: tests, linters, static code analysis
-$ ./rebar3 alias validate
+$ ./rebar3 validate
 
 # Generate documentation with edoc
 $ ./rebar3 edoc
