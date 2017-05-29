@@ -400,13 +400,14 @@ options_to_list(Options)->
 %% @private
 %% extract create-query response
 -spec get_create_query(CreateResponse :: map(), pengine_state())->
-                              {{create_query, response()}, pengine_state()} |
-                              {{no_create_query}, pengine_state()}.
+                              {nostop, {create_query, response()}, pengine_state()} |
+                              {stop, {create_query, response()}, pengine_state()} |
+                              {nostop, {no_create_query}, pengine_state()}.
 get_create_query(#{<<"answer">> := QueryRes}, State) ->
     case process_response(QueryRes, State, {}) of
         {reply, Reply, State1} ->
             {nostop, {create_query, Reply}, State1};
-        {stop, _Reason, Reply, State1} -> 
+        {stop, _Reason, Reply, State1} ->
             {stop, {create_query, Reply}, State1}
     end;
 

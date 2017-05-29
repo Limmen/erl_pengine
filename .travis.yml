@@ -13,7 +13,7 @@ install:
 - echo "overwritten install step"
 
 script:
-- ./rebar3 alias ci
+- ./rebar3 ci
 
 after_success:
 - echo "overwritten after_success step"

@@ -1,5 +1,7 @@
 # erl_pengine (v0.1.0)
 
+[![Build Status](https://travis-ci.org/Limmen/erl_pengine.svg?branch=master)](https://travis-ci.org/Limmen/erl_pengine.svg?branch=master)
+
 ## Overview
 
 **ErlangPengine**
@@ -64,27 +66,312 @@ You can add  it to your project by putting the following to your list of depende
  
  **Start application**
  
+ >>  Starts application together with dependencies
   ```erlang
- 
+ application:ensure_all_started(erl_pengine).
   ```
  
- **Using the API**
+ **Basic Usage**
  
+ >> Connect to prolog-pengine server at http://127.0.0.1:4000/pengine and create a slave-pengine with default create-options
+  and issue queries
    ```erlang
-  
-   ```
+   %% create pengine, Pid = pid of pengine process, Id = pengine unique binary identifier.
+   %% as default no create-query is sent upon create request
+   {{ok, {Pid, Id}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", #{}).      
    
+   %% Query pengine_master of list of active slave pengines
+   [{Pid, Id}] = pengine_master:list_pengines(),
+   
+   %% query pengine for a solution to member(X, [1,2]), MoreSolutions is a boolean indicating if more solutions exists.
+   {success, Id, [[1]], MoreSolutions = true} = pengine:ask(Pid, "member(X, [1,2])", #{template => "[X]", chunk => "1"}).
+   
+   %% ask pengine for next and last solution. Default option when pengine is created is that it will destroy itself upon
+   %% query completion. This can be configured in create options.
+   {{success, Id, [[2]], false}, {pengine_destroyed, Reason}} = pengine:next(Pid).
+   
+   %% When remote-pengine is destroyed also the erlang-process representing the pengine terminates
+   [] = pengine_master:list_pengines().          
+   ```   
+## Architecture
+ 
+ ![architecture](./architecture.jpg "architecture")
+  
+  `pengine_master` contains the API for creating new pengines, aborting pengines or getting a list of active slave-pengines.
+  
+  Each remote slave_pengine is represented by a erlang `pengine`-process which contains the API for querying or 
+  destroying the pengine.
+
+  Pengines are identified by their erlang-pids but you can also lookup pengines by their id from the pengine_master with
+  `lookup_pengine(Id)` or `list_pengines()`.
 ## API
+
+### Create
+
+#### `create_options`
+
+``` erlang
+%% pengine create options
+-type pengine_create_options():: #{
+                              application => binary() | string(),
+                              ask => binary() | string(),
+                              template => binary() | string(),
+                              chunk => integer(),
+                              destroy => boolean(),
+                              format => binary() | string(),
+                              src_text => binary() | string(),
+                              src_url => binary() | string()
+                             }.
+                             
+%% default options
+#{application => "pengine_sandbox", chunk => 1, destroy => true, format => json}.
+```
+#### `create_response`
+
+```erlang
+%% response to a create request
+-type create_response()::{{ok, {PengineProcess :: pid(), Id :: binary()}}, {no_create_query}} |
+                         {{ok, {PengineProcess :: pengine_destroyed, Id :: binary()}}, {no_create_query}} |
+                         {{ok, {PengineProcess :: pid(), Id :: binary()}}, {create_query, query_response()}} |
+                         {{ok, {PengineProcess :: pengine_destroyed, Id :: binary()}}, {create_query, query_response()}} |
+                         {{error, {max_limit, Reason :: any()}}, destroy_response()}.
+```
+
+#### `pengine_master:create_pengine/2`
+
+```erlang
+-spec create_pengine(string(), pengine:pengine_create_options()) ->
+                            pengine:create_response() | pengine:error_response().
+create_pengine(Server, CreateOptions) ->
+    ...   
+```
+
+The pengine server can specify the max number of pengines a single client is allowed to create. This is not enforced by 
+the server, it's up to the client implementation so its more of a "hint" by the server. This is however enforced by erl_pengine
+if you try to create a pengine whilst having more than the max-limit number of active pengines it will destroy the pengine and
+return an error. 
+
+To save one roundtrip its possible to issue a query directly upon creation of the pengine, e.g:
+```erlang
+Options = #{destroy => true, application => "pengine_sandbox", chunk => 2, format => json, ask => "member(X, [1,2])", template => "[X]"}.
+
+%% Ask query upon creation, chunking the result to max chunk size 2. Pengine is destroyed after query completion.
+{{ok, {pengine_destroyed, Id}}, {create_query, {{success, Id, [[1],[2]], false}, {pengine_destroyed, _Reason}}}} = 
+ pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options). 
+```
+It is also possible to inject prolog source-code into the pengine upon creation.
+```erlang
+Options = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json, src_text => "pengine(pingu).\n"}.
+
+{{ok, {Pid, Id}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options).
+
+{success, Id1, [[<<"pingu">>]], false} = pengine:ask(P1, "pengine(X)", #{template => "[X]", chunk => "1"}).
+```
+A typical example of injecting source is ofcourse to inject whole source-files or point to a source-url.
+
+`src_text.pl`:
+``` prolog
+pengine_child(pingu).
+pengine_child(pongi).
+pengine_child(pingo).
+pengine_child(pinga).
+
+pengine_master(papa, pingu).
+pengine_master(mama, pongi).
+```
+
+```erlang
+{ok, File} = file:read_file("src_text.pl").
+
+Options = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json, src_text => File}.
+
+%% Inject prolog source upon creation
+{{ok, {Pid, Id}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options)
+
+{success, Id, [[<<"pingu">>], [<<"pongi">>], [<<"pingo">>], [<<"pinga">>]], false} = 
+ pengine:ask(Pid, "pengine_child(X)", #{template => "[X]", chunk => "10"}).
+ 
+ %% It is also possible to inject source by specifying a url
+ Options = #{destroy => true, application => "pengine_sandbox", chunk => 1, format => json, src_url => "http://127.0.0.1:4000/src_url.pl"}
+```
+### Destroy
+
+#### `destroy_response`
+
+```erlang
+%% response if pengine to send request to was destroyed after the request
+-type destroy_response()::{pengine_destroyed, Reason :: any()}.
+```
+
+#### `pengine:destroy/1`
+
+```erlang
+-spec destroy(pid()) -> destroy_response() | error_response().
+destroy(Pengine) ->
+ ...
+```
+
+destroy function takes a pid of a pengine process and sends a request to the prolog server to destroy the pengine and then
+it the erlang process will also terminate. destroy function is typically only necessary if the pengine was created with
+option `destroy=false` otherwise the pengine will destroy itself after query completion.
+
+```erlang
+{{ok, {Pid, Id}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", #{}).
+
+{pengine_destroyed, _Reply} = pengine:destroy(Pid).
+```
+
+### Ask 
+
+#### `query_options`
+
+```erlang
+%% query_options to the ask() function.
+-type query_options():: #{
+                     template := string(),
+                     chunk := integer()
+                    }.
+```
+
+#### `ask_response`
+
+```erlang
+%% response to a ask-request
+-type ask_response():: {query_response(), destroy_response()} |
+                       query_response() |
+                       {output_response(), destroy_response()} |
+                       output_response() |
+                       died_response().
+```
+#### `pengine:ask/3`
+
+```erlang
+-spec ask(pid(), string(), query_options()) -> ask_response() | error_response().
+ask(Pengine, Query, Options) ->
+ ...
+```
+The ask function takes a pengine process, a query and query options as input and will send a query request to the slave_pengine.
+```erlang
+%% Ask pengine for one solution at a time
+{success, Id, [[1]], MoreSolutions = true} = pengine:ask(Pid, "member(X, [1,2])", #{template => "[X]", chunk => "1"})
+```
+
+#### `pengine:next/1`
+
+```erlang
+-spec next(pid()) -> ask_response() | error_response().
+next(Pengine) ->
+...
+```
+The next function will ask the pengine for more solutions to the currently active query
+
+```erlang
+ {{success, Id, [[2]], MoreSolutions = false}, {pengine_destroyed, _}} = pengine:next(Pid)
+```
+
+### Ping
+
+#### `ping_response`
+
+```erlang
+%% response for ping request
+-type ping_response():: {ping_response, Id :: binary(), Data :: map()} |
+                        {ping_interval_set, Interval :: integer()} |
+                        died_response().
+```
+
+#### `pengine:ping/2`
+
+```erlang
+-spec ping(pid(), integer()) -> ping_response() | error_response().
+ping(Pengine, Interval) ->
+...
+```
+Sends a ping request to the pengine
+
+If Interval = 0, send a single ping. If Interval > 0, set/change periodic ping event, if 0, clear periodic interval.
+
+Slave-pengines are destroyed by the server after ~5min to avoid runaway computations and stacking up pengines.
+Periodic pinging of a slave-pengine is a way to have the state of active pengines of `pengine_master` more up to date
+since it will let you notice as soon as a pengine is aborted and can then update the state and terminate also the erlang
+process.
+
+```erlang
+16> pengine:ping(Pid, 0).
+{ping_response,<<"bbe8836f-8eae-45d5-853e-e55ea3b92f6b">>,
+               #{<<"id">> => 11,
+                 <<"stacks">> =>
+                     #{<<"global">> =>
+                           #{<<"allocated">> => 61424,
+                             <<"limit">> => 268435456,
+                             <<"name">> => <<"global">>,<<"usage">> => 2056},
+                       <<"local">> =>
+                           #{<<"allocated">> => 28672,
+                             <<"limit">> => 268435456,
+                             <<"name">> => <<"local">>,<<"usage">> => 1408},
+                       <<"total">> =>
+                           #{<<"allocated">> => 120808,
+                             <<"limit">> => 805306368,
+                             <<"name">> => <<"stacks">>,<<"usage">> => 4128},
+                       <<"trail">> =>
+                           #{<<"allocated">> => 30712,
+                             <<"limit">> => 268435456,
+                             <<"name">> => <<"trail">>,<<"usage">> => 664}},
+                 <<"status">> => <<"running">>,
+                 <<"time">> =>
+                     #{<<"cpu">> => 0.001505787,
+                       <<"epoch">> => 1496089942.8789568,
+                       <<"inferences">> => 197}}}
+```
+
+### Receive Pengine Output
+
+### Prompt
+
+### Abort/Stop
+
+### pengine_master
 
 ## Examples
 
-```erlang
+See `/examples` for two simple example projects, one project uses prolog as a constraint-solver for the sudoku-problem 
+and the other project uses prolog as a rdf triple-store. 
 
+```erlang
+sudoku_solver:solve_sudoku(Src).
+ [[9,8,7,6,5,4,3,2,1],
+  [2,4,6,1,7,3,9,8,5],
+  [3,5,1,9,2,8,7,4,6],
+  [1,2,8,5,3,7,6,9,4],
+  [6,3,4,8,9,2,1,5,7],
+  [7,9,5,4,6,1,8,3,2],
+  [5,1,9,2,8,6,4,7,3],
+  [4,7,2,3,1,9,5,6,8],
+  [8,6,3,7,4,5,2,1,9]]
+ 4> 
+
+ 5> semweb:supervises().
+ [{<<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>,
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine">>},
+  {<<"http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup">>,
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#table_mngr">>},
+  {<<"http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup">>,
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>},
+  {<<"http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup">>,
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_master">>}]
+ 6>
 ```
 
 ## Contribute
 
 Contributions are welcome, for bugreports please use github issues.
+
+It's hard to think of all edge-cases and cover with tests so please if you find a bug, open up a issue or fork and create a 
+PR.
 
 ### Most useful project commands
 
