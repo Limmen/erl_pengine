@@ -15,7 +15,7 @@ For more information about the pengine project see the following links.
 
 EDoc link:
 
-* [Edoc](doc/index.html) 
+* [Edoc](https://limmen.github.io/erl_pengine/index.html) 
 
 ### Features
 
