@@ -32,14 +32,16 @@
 
 %% types
 
-%% query_options to the ask() function.
+%% state
 -type pengine_state()::#pengine_state{}.
 
+%% query_options to the ask() function.
 -type query_options():: #{
                      template := string(),
                      chunk := integer()
                     }.
 
+%% response from some request to pengine
 -type response():: create_response() |
                    ask_response() |
                    destroy_response() |
@@ -50,35 +52,51 @@
                    error_response() |
                    prompt_response().
 
+%% response to a create request
 -type create_response()::{{ok, {PengineProcess :: pid(), Id :: binary()}}, {no_create_query}} |
-                         {{ok, {PengineProcess :: pid(), Id :: binary()}}, {no_create_query}} |
-                         {{ok, {PengineProcess :: pid(), Id :: binary()}}, query_response()} |
+                         {{ok, {PengineProcess :: pengine_destroyed, Id :: binary()}}, {no_create_query}} |
+                         {{ok, {PengineProcess :: pid(), Id :: binary()}}, {create_query, query_response()}} |
+                         {{ok, {PengineProcess :: pengine_destroyed, Id :: binary()}}, {create_query, query_response()}} |
                          {{error, {max_limit, Reason :: any()}}, destroy_response()}.
 
+%% response to a ask-request
 -type ask_response():: {query_response(), destroy_response()} |
                        query_response() |
                        {output_response(), destroy_response()} |
-                       output_response().
+                       output_response() |
+                       died_response().
 
+%% response to a query
 -type query_response()::{failure, Id :: binary()} |
                         {success, Id :: binary(), Data :: list(), More :: boolean()}.
 
+%% response if pengine to send request to was destroyed after the request
 -type destroy_response()::{pengine_destroyed, Reason :: any()}.
 
+%% response for ping request
 -type ping_response():: {ping_response, Id :: binary(), Data :: map()} |
-                        {ping_interval_set, Interval :: integer()}.
+                        {ping_interval_set, Interval :: integer()} |
+                        died_response().
 
+%% response if pengine to send request to was dead before request could be handled
 -type died_response()::{pengine_died, Reason :: any()}.
 
+%% response to abort-request
 -type abort_response()::{aborted, Id :: binary()} |
-                        {{aborted, Id :: binary()}, destroy_response()}.
+                        {{aborted, Id :: binary()}, destroy_response()} |
+                        died_response().
 
--type stop_response()::{stopped, Id :: binary()}.
+%% response to stop-request
+-type stop_response()::{stopped, Id :: binary()} |
+                       died_response().
 
+%% response when pengine signaling that some error occurred
 -type error_response()::{error, Id :: binary(), Reason :: binary(), Code :: binary()}.
 
+%% response to a pengine-prompt
 -type prompt_response()::{prompt, Id :: binary(), Data :: binary()}.
 
+%% response to pengine-output
 -type output_response()::{{output, PrologOutput :: any()}, {pull_response, ask_response()}}.
 
 %%====================================================================
@@ -89,7 +107,7 @@
 %% Starts the server
 -spec start_link(list()) -> {ok, pid()}.
 start_link(Args) ->
-    lager:info("starting pengine"),
+    lager:debug("starting pengine"),
     gen_server:start_link(?MODULE, Args, []).
 
 %% @doc
@@ -98,7 +116,7 @@ start_link(Args) ->
 %% non-null value, i.e. the oncreate handler must have been called.
 -spec id(pid()) -> Id :: binary().
 id(Pengine)->
-    lager:info("querying the pengine for its id"),
+    lager:debug("querying the pengine for its id"),
     gen_server:call(Pengine, {id}).
 
 %% @doc
@@ -112,14 +130,14 @@ id(Pengine)->
 %% The maximum number of solutions to retrieve in one chunk. 1 means no chunking (default).
 -spec ask(pid(), string(), query_options()) -> ask_response() | error_response().
 ask(Pengine, Query, Options) ->
-    lager:info("sending a query ~p to the pengine", [Query]),
+    lager:debug("sending a query ~p to the pengine", [Query]),
     gen_server:call(Pengine, {ask, Query, Options}, infinity).
 
 %% @doc
 %% Triggers a search for the next solution.
 -spec next(pid()) -> ask_response() | error_response().
 next(Pengine) ->
-    lager:info("asking the pengine for next solution"),
+    lager:debug("asking the pengine for next solution"),
     gen_server:call(Pengine, {next}, infinity).
 
 %% @doc
@@ -128,19 +146,23 @@ next(Pengine) ->
 %% Throws an error if string cannot be parsed as a Prolog term or if object cannot be serialised into JSON.
 -spec respond(pid(), list()) -> ask_response() | error_response().
 respond(Pengine, PrologTerm) ->
-    lager:info("responds to pengine_input with ~p", [PrologTerm]),
+    lager:debug("responds to pengine_input with ~p", [PrologTerm]),
     gen_server:call(Pengine, {respond, PrologTerm}, infinity).
 
 %% @doc
 %% Destroys the pengine.
 -spec destroy(pid()) -> destroy_response() | error_response().
 destroy(Pengine) ->
-    lager:info("destroying the pengine"),
+    lager:debug("destroying the pengine"),
     gen_server:call(Pengine, {destroy}, infinity).
 
+%% @doc
+%% Sends a ping request to the pengine
+%% If Interval = 0, send a single ping.
+%% If Interval > 0, set/change periodic ping event, if 0, clear periodic interval
 -spec ping(pid(), integer()) -> ping_response() | error_response().
 ping(Pengine, Interval) ->
-    lager:info("pinging the pengine"),
+    lager:debug("pinging the pengine"),
     gen_server:call(Pengine, {ping, Interval}, infinity).
 
 %%====================================================================
@@ -152,7 +174,7 @@ ping(Pengine, Interval) ->
 %% Initializes the server, creates the pengine.
 -spec init(list()) -> {ok, pengine_state()}.
 init([Id, Server]) ->
-    lager:info("Initializing pengine"),
+    lager:debug("Initializing pengine"),
     syn:register(Id, self()),
     {ok, #pengine_state{id = Id, server = Server}}.
 
@@ -167,12 +189,12 @@ handle_call({id}, _From, State) ->
 handle_call({ask, Query, Options}, _From, State) ->
     Send = "ask((" ++ Query ++ "), " ++ options_to_list(Options) ++ ")",
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, Send, "json"),
-    lager:info("Ask response: ~p", [Res]),
+    lager:debug("Ask response: ~p", [Res]),
     process_response(Res, State, {});
 
 handle_call({next}, _From, State) ->
     {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "next", "json"),
-    lager:info("next response: ~p", [Res]),
+    lager:debug("next response: ~p", [Res]),
     process_response(Res, State, {});
 
 handle_call({respond, PrologTerm}, _From, State) ->
@@ -211,16 +233,16 @@ handle_cast(_Msg, State) ->
 -spec handle_info(timeout | term(), pengine_state()) -> {noreply, pengine_state()}.
 handle_info({ping_timeout, Interval}, State) ->
     {ok, Res} = pengine_pltp_http:ping(State#pengine_state.id, State#pengine_state.server, "json"),
-    case ping_verdict(Res) of 
-        true -> 
+    case ping_verdict(Res) of
+        true ->
             Status = maps:get(<<"status">>, maps:get(<<"data">>, Res)),
-            lager:info("ping timeout, pengine answered ping, status: ~p", [Status]),
+            lager:debug("ping timeout, pengine answered ping, status: ~p", [Status]),
             erlang:cancel_timer(State#pengine_state.ping_timer),
             Timer = erlang:send_after(Interval*1000, self(), {ping_timeout, Interval}),
             {noreply, State#pengine_state{ping_timer = Timer}};
         false ->
             erlang:cancel_timer(State#pengine_state.ping_timer),
-            lager:info("Bad ping response from pengine: ~p", [Res]),
+            lager:debug("Bad ping response from pengine: ~p", [Res]),
             {stop, normal, State}
     end;
 
@@ -232,7 +254,7 @@ handle_info(_Info, State) ->
 %% Cleanup function
 -spec terminate(normal | shutdown | {shutdown, term()}, pengine_state()) -> ok.
 terminate(Reason, State) ->
-    lager:info("pengine terminating, reason: ~p, state: ~p", [Reason, State]),
+    lager:debug("pengine terminating, reason: ~p, state: ~p", [Reason, State]),
     ok.
 
 %% @private
@@ -257,18 +279,23 @@ code_change(_OldVsn, State, _Extra) ->
                               {stop, Reason::any(), response(), pengine_master:master_state()}.
 
 process_response(Res = #{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">> := SlaveLimit},
-                 State, {TableId, Server})->
+                 State, {create, TableId, Server})->
     {size, Size} = lists:keyfind(size, 1, ets:info(TableId)),
-    lager:info("Attempting to create pengine, max_slaves: ~p , active pengines: ~p", [SlaveLimit, Size]),
+    lager:debug("Attempting to create pengine, max_slaves: ~p , active pengines: ~p", [SlaveLimit, Size]),
     case SlaveLimit > Size of
         true ->
-            {ok, Pid} = supervisor:start_child(pengine_sup, [[Id, Server]]),
-            ets:insert(TableId, {Id}),
-            Reply1 = {ok, {Pid, Id}},
-            {Reply2, State1} = get_create_query(Res, State),
-            {reply, {Reply1, Reply2}, State1};
+            case get_create_query(Res, State) of
+                {nostop, Reply2, State1} ->
+                    {ok, Pid} = supervisor:start_child(pengine_sup, [[Id, Server]]),
+                    ets:insert(TableId, {Id}),
+                    Reply1 = {ok, {Pid, Id}},
+                    {reply, {Reply1, Reply2}, State1};
+                {stop, Reply2, State1} ->
+                    Reply1 = {ok, {pengine_destroyed, Id}},
+                    {reply, {Reply1, Reply2}, State1}
+            end;
         false ->
-            lager:info("Attempt to create too many pengines. The limit is: ~p ~n", [SlaveLimit]),
+            lager:debug("Attempt to create too many pengines. The limit is: ~p ~n", [SlaveLimit]),
             Reason = "Attempt to create too many pengines. The limit is: " ++ [SlaveLimit] ++ "\n",
             {ok, DestroyRes} = pengine_pltp_http:send(Id, Server, "destroy", "json"),
             Reply1 = {error, {max_limit, Reason}},
@@ -310,9 +337,8 @@ process_response(#{<<"event">> := <<"success">>, <<"id">> := Id, <<"data">> := D
 
 process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := Output}, State, _)->
     lager:debug("process response: output"),
-    lager:info("output event handler!!"),
     {ok, Res} = pengine_pltp_http:pull_response(Id, State#pengine_state.server, "json"),
-    lager:info("Pull response returned: ~p", [Res]),
+    lager:debug("Pull response returned: ~p", [Res]),
     PullResponse = process_response(Res, State, {}),
     case PullResponse of
         {stop, Reason, Reply, State1} ->
@@ -337,7 +363,7 @@ process_response(#{<<"event">> := <<"destroy">>, <<"id">> := Id, <<"data">> := D
     lager:debug("process response: destroy"),
     {reply, Reply1, State1} = process_response(Data, State, {}),
     Reply2 = {pengine_destroyed, "Pengine slave: " ++ [Id] ++ " was destroyed"},
-    lager:info("Returning reply: ~p", [{Reply1, Reply2}]),
+    lager:debug("Returning reply: ~p", [{Reply1, Reply2}]),
     Reason = normal,
     {stop, Reason, {Reply1, Reply2}, State1};
 
@@ -377,11 +403,15 @@ options_to_list(Options)->
                               {{create_query, response()}, pengine_state()} |
                               {{no_create_query}, pengine_state()}.
 get_create_query(#{<<"answer">> := QueryRes}, State) ->
-    {reply, Reply, State1} = process_response(QueryRes, State, {}),
-    {{create_query, Reply}, State1};
+    case process_response(QueryRes, State, {}) of
+        {reply, Reply, State1} ->
+            {nostop, {create_query, Reply}, State1};
+        {stop, _Reason, Reply, State1} -> 
+            {stop, {create_query, Reply}, State1}
+    end;
 
 get_create_query(_, State) ->
-    {{no_create_query}, State}.
+    {nostop, {no_create_query}, State}.
 
 %% @doc
 %% @private

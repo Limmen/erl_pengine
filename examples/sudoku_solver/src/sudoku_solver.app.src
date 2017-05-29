@@ -1,0 +1,15 @@
+{application, sudoku_solver,
+ [{description, "Example sudoku-solver using erl_pengine"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {maintainers, []},
+  {licenses, []},
+  {links, []}
+ ]}.

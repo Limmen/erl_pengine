@@ -23,6 +23,6 @@
 
   {maintainers, ["Kim Hammar"]},
   {licenses, ["MIT"]},
-  {links, []},
+  {links, [{"Github", "https://github.com/Limmen/erl_pengine"}]},
   {build_tools, ["rebar3"]}
  ]}.

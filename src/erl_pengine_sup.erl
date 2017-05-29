@@ -27,7 +27,7 @@
 %% Starts top-level supervisor
 -spec start_link() -> {ok, pid()}.
 start_link() ->
-    lager:info("starting top-level supervisor"),
+    lager:debug("starting top-level supervisor"),
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 %%====================================================================
@@ -41,7 +41,7 @@ start_link() ->
 -spec init([]) -> {ok, {supervisor:sup_flags(),
                         [supervisor:child_spec()]}}.
 init([]) ->
-    lager:info("initializing top-level supervisor"),
+    lager:debug("initializing top-level supervisor"),
     SupFlags = #{strategy => one_for_one,
                  intensity => 1,
                  period => 5},
@@ -68,7 +68,3 @@ init([]) ->
                   modules => ['table_mngr']},
 
     {ok, {SupFlags, [Master, PengineSup, TableMngr]} }.
-
-%%====================================================================
-%% Internal functions
-%%====================================================================

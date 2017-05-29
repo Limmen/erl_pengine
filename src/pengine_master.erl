@@ -32,6 +32,7 @@
 
 %% types
 
+%% state
 -type master_state()::#master_state{}.
 
 %% pengine create options
@@ -61,7 +62,7 @@ start_link() ->
 -spec create_pengine(string(), pengine:pengine_create_options()) ->
                             pengine:create_response() | pengine:error_response().
 create_pengine(Server, CreateOptions) ->
-    lager:info("creating pengine, server: ~p, createOpts: ~p", [Server, CreateOptions]),
+    lager:debug("creating pengine, server: ~p, createOpts: ~p", [Server, CreateOptions]),
     gen_server:call(?SERVER, {create, Server, CreateOptions}).
 
 %% @doc
@@ -86,7 +87,7 @@ kill_all_pengines()->
 %% Tells a busy pengine to stop searching for solutions. Terminates the running query gracefully.
 -spec stop(binary(), string()) -> pengine:stop_response() | pengine:error_response().
 stop(Id, Server) ->
-    lager:info("stopping pengine ~p that is running some query"),
+    lager:debug("stopping pengine ~p that is running some query"),
     gen_server:call(?SERVER, {stop, Id, Server}).
 
 
@@ -94,7 +95,7 @@ stop(Id, Server) ->
 %% Terminates the running query of a busy pengine by force
 -spec abort(binary(), string()) -> pengine:abort_response() | pengine:error_response().
 abort(Id, Server) ->
-    lager:info("aborts the running query abruptely"),
+    lager:debug("aborts the running query abruptely"),
     gen_server:call(?SERVER, {abort, Id, Server}).
 
 %%====================================================================
@@ -117,7 +118,7 @@ handle_call({create, Server, CreateOptions}, _From, State) ->
     cleanup_pengines(State#master_state.table_id),
     Opts = maps:fold(fun(K, V, S) -> S#{K => V}  end, default_create_options(), CreateOptions),
     {ok, Res} = pengine_pltp_http:create(Server, Opts),
-    pengine:process_response(Res, State, {State#master_state.table_id, Server});
+    pengine:process_response(Res, State, {create, State#master_state.table_id, Server});
 
 handle_call({list_pengines}, _From, State) ->
     cleanup_pengines(State#master_state.table_id),
@@ -153,8 +154,8 @@ handle_cast(_Msg, State) ->
 %% Handling all non call/cast messages
 -spec handle_info(timeout | term(), master_state()) -> {noreply, master_state()}.
 handle_info({'ETS-TRANSFER', TableId, Pid, _Data}, State) ->
-    lager:info("pengine master recieved slave-pengine state from ~p, tableId: ~p", [Pid, TableId]),
-    lager:info("Active slave-pengines: ~p", [ets:tab2list(TableId)]),
+    lager:debug("pengine master recieved slave-pengine state from ~p, tableId: ~p", [Pid, TableId]),
+    lager:debug("Active slave-pengines: ~p", [ets:tab2list(TableId)]),
     {noreply, State#master_state{table_id=TableId}};
 
 handle_info(_Info, State) ->
@@ -166,7 +167,7 @@ handle_info(_Info, State) ->
 %% Cleanup function, kill all pengines before termination.
 -spec terminate(normal | shutdown | {shutdown, term()}, master_state()) -> ok.
 terminate(Reason, State) ->
-    lager:info("Pengine master terminating, reason: ~p", [Reason]),
+    lager:debug("Pengine master terminating, reason: ~p", [Reason]),
     cleanup_pengines(State#master_state.table_id),
     kill_all_pengines(State#master_state.table_id),
     ok.

@@ -27,6 +27,7 @@
 
 %% types
 
+%% state
 -type table_mngr_state() :: #table_mngr_state{}.
 
 %%====================================================================
@@ -74,8 +75,8 @@ handle_cast({handover}, State) ->
     MasterPengine = whereis(pengine_master),
     link(MasterPengine),
     TableId = ets:new(pengines, [named_table, set, private]),
-    lager:info("pengines state-table created, handing it over to master-pengine ~p MasterPengine"),
-    lager:info("table: ~p", [ets:tab2list(TableId)]),
+    lager:debug("pengines state-table created, handing it over to master-pengine ~p MasterPengine"),
+    lager:debug("table: ~p", [ets:tab2list(TableId)]),
     ets:setopts(TableId, {heir, self(), {table_handover}}),
     ets:give_away(TableId, MasterPengine, {table_handover}),
     {noreply, State#table_mngr_state{table_id=TableId}};
@@ -88,14 +89,14 @@ handle_cast(_Msg, State) ->
 %% Handling all non call/cast messages
 -spec handle_info(timeout | term(), table_mngr_state()) -> {noreply, table_mngr_state()}.
 handle_info({'EXIT', Pid, Reason}, State) ->
-    lager:info("MasterPengine ~p crashed, reason: ~p", [Pid, Reason]),
+    lager:debug("MasterPengine ~p crashed, reason: ~p", [Pid, Reason]),
     {noreply, State};
 
 handle_info({'ETS-TRANSFER', TableId, Pid, Data}, State) ->
-    lager:info("Received backup tableId ~p of master-pengine ~p state who have crashed, waiting for it to be restored",
-               [TableId, Pid]),
+    lager:debug("Received backup tableId ~p of master-pengine ~p state who have crashed, waiting for it to be restored",
+                [TableId, Pid]),
     MasterPengine = wait_for_master(),
-    lager:info("Master-pengine restored ~p, handing over the state, tableId: ~p", [MasterPengine, TableId]),
+    lager:debug("Master-pengine restored ~p, handing over the state, tableId: ~p", [MasterPengine, TableId]),
     link(MasterPengine),
     ets:give_away(TableId, MasterPengine, Data),
     {noreply, State#table_mngr_state{table_id=TableId}};

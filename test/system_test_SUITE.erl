@@ -120,11 +120,13 @@ test_ask(_Config)->
     ?assert(is_process_alive(P2)),
     {success, Id2, [[1],[2]], false} = pengine:ask(P2, "member(X, [1,2])", #{template => "[X]", chunk => "10"}),
     ?assert(is_process_alive(P2)),
-    {{ok, {P3, Id3}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
-    {{success, Id3, [[1],[2]], false}, {pengine_destroyed, _}} = pengine:ask(P3, "member(X, [1,2])", #{template => "[X]", chunk => "2"}),
-    ?assertNot(is_process_alive(P3)),
+    Options2 = #{destroy => true, application => "pengine_sandbox", chunk => 10, format => json, ask => "member(X, [1,2])", template => "[X]"},
+    {{ok, {pengine_destroyed, Id3}}, {create_query, {{success, Id3, [[1],[2]], false}, {pengine_destroyed, _}}}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options2),
     {{ok, {P4, Id4}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
-    {{failure, Id4}, {pengine_destroyed, _}} = pengine:ask(P4, "member(3, [1,2])", #{template => "[]", chunk => "10"}),
+    {{success, Id4, [[1],[2]], false}, {pengine_destroyed, _}} = pengine:ask(P4, "member(X, [1,2])", #{template => "[X]", chunk => "2"}),
+    ?assertNot(is_process_alive(P4)),
+    {{ok, {P5, Id5}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options),
+    {{failure, Id5}, {pengine_destroyed, _}} = pengine:ask(P5, "member(3, [1,2])", #{template => "[]", chunk => "10"}),
     pengine_master:kill_all_pengines().
 
 %% test abortion request
@@ -263,6 +265,7 @@ test_output(_Config)->
     } 
         = pengine:ask(P2, "output_test2(X)", #{template => "[X]", chunk => "1"}).
 
+%% Test inject source into pengine upon creation, both source from file and string.
 test_inject_source(_Config) ->
     Options1 = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json, src_text => "pengine(pingu).\n"},
     {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options1),
@@ -274,12 +277,8 @@ test_inject_source(_Config) ->
     {success, Id2, [[<<"papa">>, <<"pingu">>], [<<"mama">>, <<"pongi">>]], false} = pengine:ask(P2, "pengine_master(X, Y)", #{template => "[X, Y]", chunk => "10"}),
     pengine_master:kill_all_pengines().
 
+%% Test inject source into pengine upon creation from url
 test_inject_source_via_url(_Config)->
     Options1 = #{destroy => true, application => "pengine_sandbox", chunk => 1, format => json, src_url => "http://127.0.0.1:4000/src_url.pl"},
     {{ok, {P1, Id1}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options1),
     {{success, Id1, [[<<"success">>]], false}, {pengine_destroyed, _Reason}} = pengine:ask(P1, "src_url_test(X)", #{template => "[X]", chunk => "1"}).
-
-%%===================================================================
-%% Internal functions
-%%===================================================================
-

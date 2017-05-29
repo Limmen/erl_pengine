@@ -18,13 +18,11 @@
 
 %% @doc
 %% Ping the status of the pengine.
-%% If Interval = 0, send a single ping.
-%% If Interval > 0, set/change periodic ping event, if 0, clear periodic interval
 -spec ping(binary(), string(), string()) -> {ok, map()} |
                                             {error, any()}.
 ping(Id, Server, Format) ->
     URL = list_to_binary(Server ++ "/ping?id=" ++ binary:bin_to_list(Id) ++ "&format=" ++ Format),
-    lager:info("sending ping to: ~p", [URL]),
+    lager:debug("sending ping to: ~p", [URL]),
     case hackney:get(URL, [json_accept_header()], <<>>, []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
@@ -42,7 +40,7 @@ ping(Id, Server, Format) ->
                                                      {error, any()}.
 pull_response(Id, Server, Format) ->
     URL = list_to_binary(Server ++ "/pull_response?id=" ++ binary:bin_to_list(Id) ++ "&format=" ++ Format),
-    lager:info("sending pull_response to: ~p", [URL]),
+    lager:debug("sending pull_response to: ~p", [URL]),
     case hackney:get(URL, [json_content_type(), json_accept_header()], <<>>, []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
@@ -67,7 +65,7 @@ pull_response(Id, Server, Format) ->
 send(Id, Server, Event, Format) ->
     URL = list_to_binary(Server ++ "/send?format=" ++ Format ++ "&id=" ++ Id),
     Data = list_to_binary(Event ++ ".\n"),
-    lager:info("sending event ~p to pengine: ~p", [Event, Id]),
+    lager:debug("sending event ~p to pengine: ~p", [Event, Id]),
     case hackney:post(URL, [prolog_content_type()], Data, [{recv_timeout, infinity}]) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
@@ -85,7 +83,7 @@ send(Id, Server, Event, Format) ->
 create(Server, Options) ->
     Options1 = options_to_binary(Options),
     URL = list_to_binary(Server ++ "/create"),
-    lager:info("sending create pengine request to: ~p, options: ~p", [URL, options_to_json(Options1)]),
+    lager:debug("sending create pengine request to: ~p, options: ~p", [URL, options_to_json(Options1)]),
     case hackney:post(URL, [json_content_type(), json_accept_header()], options_to_json(Options1), []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
@@ -101,7 +99,7 @@ create(Server, Options) ->
                                              {error, any()}.
 abort(Id, Server, Format) ->
     URL = list_to_binary(Server ++ "/abort?id=" ++ binary:bin_to_list(Id) ++ "&format=" ++ Format),
-    lager:info("sending abort pengine request to: ~p", [URL]),
+    lager:debug("sending abort pengine request to: ~p", [URL]),
     case hackney:get(URL, [json_content_type(), json_accept_header()], <<>>, []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
