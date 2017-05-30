@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/Limmen/erl_pengine.svg?branch=master)](https://travis-ci.org/Limmen/erl_pengine.svg?branch=master)
 
+[![Hex pm](http://img.shields.io/hexpm/v/erl_pengine.svg?style=flat)](https://hex.pm/packages/erl_pengine)
+
 ## Overview
 
 **ErlangPengine**
