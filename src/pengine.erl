@@ -55,8 +55,8 @@
 %% response to a create request
 -type create_response()::{{ok, {PengineProcess :: pid(), Id :: binary()}}, {no_create_query}} |
                          {{ok, {PengineProcess :: pengine_destroyed, Id :: binary()}}, {no_create_query}} |
-                         {{ok, {PengineProcess :: pid(), Id :: binary()}}, {create_query, query_response()}} |
-                         {{ok, {PengineProcess :: pengine_destroyed, Id :: binary()}}, {create_query, query_response()}} |
+                         {{ok, {PengineProcess :: pid(), Id :: binary()}}, {create_query, ask_response()}} |
+                         {{ok, {PengineProcess :: pengine_destroyed, Id :: binary()}}, {create_query, ask_response()}} |
                          {{error, {max_limit, Reason :: any()}}, destroy_response()}.
 
 %% response to a ask-request

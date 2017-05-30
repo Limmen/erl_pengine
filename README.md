@@ -185,8 +185,8 @@ You can add  it to your project by putting the following to your list of depende
 %% response to a create request
 -type create_response()::{{ok, {PengineProcess :: pid(), Id :: binary()}}, {no_create_query}} |
                          {{ok, {PengineProcess :: pengine_destroyed, Id :: binary()}}, {no_create_query}} |
-                         {{ok, {PengineProcess :: pid(), Id :: binary()}}, {create_query, query_response()}} |
-                         {{ok, {PengineProcess :: pengine_destroyed, Id :: binary()}}, {create_query, query_response()}} |
+                         {{ok, {PengineProcess :: pid(), Id :: binary()}}, {create_query, ask_response()}} |
+                         {{ok, {PengineProcess :: pengine_destroyed, Id :: binary()}}, {create_query, ask_response()}} |
                          {{error, {max_limit, Reason :: any()}}, destroy_response()}.
 ```
 
@@ -306,7 +306,12 @@ option `destroy=false` otherwise the pengine will destroy itself after query com
                        {prompt_response() | destroy_response()} |
                        prompt_response() |
                        died_response().
+                       
+%% response to a query
+-type query_response()::{failure, Id :: binary()} |
+                        {success, Id :: binary(), Data :: list(), More :: boolean()}.
 ```
+
 #### `pengine:ask/3`
 
 ```erlang
