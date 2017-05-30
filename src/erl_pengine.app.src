@@ -1,5 +1,5 @@
 {application, erl_pengine,
- [{description, "Erlang Pengine"},
+ [{description, "Erlang Pengine, Erlang client to prolog pengine server."},
   {vsn, "0.1.0"},
   {registered, []},
   {mod, { erl_pengine, []}},
