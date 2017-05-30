@@ -62,7 +62,6 @@ start_link() ->
 -spec create_pengine(string(), pengine:pengine_create_options()) ->
                             pengine:create_response() | pengine:error_response().
 create_pengine(Server, CreateOptions) ->
-    lager:debug("creating pengine, server: ~p, createOpts: ~p", [Server, CreateOptions]),
     gen_server:call(?SERVER, {create, Server, CreateOptions}).
 
 %% @doc
@@ -87,7 +86,6 @@ kill_all_pengines()->
 %% Tells a busy pengine to stop searching for solutions. Terminates the running query gracefully.
 -spec stop(binary(), string() | binary()) -> pengine:stop_response() | pengine:error_response().
 stop(Id, Server) ->
-    lager:debug("stopping pengine ~p that is running some query"),
     gen_server:call(?SERVER, {stop, Id, Server}).
 
 
@@ -95,7 +93,6 @@ stop(Id, Server) ->
 %% Terminates the running query of a busy pengine by force
 -spec abort(binary(), string() | binary()) -> pengine:abort_response() | pengine:error_response().
 abort(Id, Server) ->
-    lager:debug("aborts the running query abruptely"),
     gen_server:call(?SERVER, {abort, Id, Server}).
 
 %%====================================================================
@@ -153,9 +150,7 @@ handle_cast(_Msg, State) ->
 %% @doc
 %% Handling all non call/cast messages
 -spec handle_info(timeout | term(), master_state()) -> {noreply, master_state()}.
-handle_info({'ETS-TRANSFER', TableId, Pid, _Data}, State) ->
-    lager:debug("pengine master recieved slave-pengine state from ~p, tableId: ~p", [Pid, TableId]),
-    lager:debug("Active slave-pengines: ~p", [ets:tab2list(TableId)]),
+handle_info({'ETS-TRANSFER', TableId, _Pid, _Data}, State) ->
     {noreply, State#master_state{table_id=TableId}};
 
 handle_info(_Info, State) ->
@@ -166,8 +161,7 @@ handle_info(_Info, State) ->
 %% @doc
 %% Cleanup function, kill all pengines before termination.
 -spec terminate(normal | shutdown | {shutdown, term()}, master_state()) -> ok.
-terminate(Reason, State) ->
-    lager:debug("Pengine master terminating, reason: ~p", [Reason]),
+terminate(_Reason, State) ->
     cleanup_pengines(State#master_state.table_id),
     kill_all_pengines(State#master_state.table_id),
     ok.

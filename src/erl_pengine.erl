@@ -29,7 +29,6 @@
 -spec start(normal | {takeover , node()} | {failover, node()}, term()) ->
                    {ok, pid()}.
 start(_StartType, _StartArgs) ->
-    lager:info("starting erl_pengine application"),
     syn:init(),
     erl_pengine_sup:start_link().
 
@@ -38,7 +37,6 @@ start(_StartType, _StartArgs) ->
 %% Cleanup function
 -spec stop(any()) -> ok.
 stop(_State) ->
-    lager:info("erl_pengine application stopping"),
     ok.
 
 %%====================================================================

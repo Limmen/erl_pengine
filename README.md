@@ -673,9 +673,6 @@ $ ./rebar3 edoc
 # Start shell with application loaded
 $ ./rebar3 shell
 
-# Start shell with configuration
-$ rebar3 shell --config erl_pengine.config
-
 # Run release
 $ ./rebar3 run
 
