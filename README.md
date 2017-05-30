@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/Limmen/erl_pengine.svg?branch=master)](https://travis-ci.org/Limmen/erl_pengine.svg?branch=master)
 
 [![Hex pm](http://img.shields.io/hexpm/v/erl_pengine.svg?style=flat)](https://hex.pm/packages/erl_pengine)
-
+      
 ## Overview
 
 **ErlangPengine**
@@ -44,6 +44,57 @@ Other pengine clients:
 * `erl_pengine.erl`: entrypoint module, application callback module, start with `application:start(erl_pengine)`
 * `pengine.erl`: main API for a created slave-pengine
 * `pengine_master`: API for administering active pengines and also creating new ones
+
+## Table of Contents
+
+   * [erl_pengine (v0.1.0)](#erl_pengine-v010)
+      * [Overview](#overview)
+         * [Features](#features)
+         * [Useful Modules](#useful-modules)
+      * [QuickStart Usage](#quickstart-usage)
+      * [Architecture](#architecture)
+      * [API](#api)
+         * [Create](#create)
+            * [create_options](#create_options)
+            * [create_response](#create_response)
+            * [pengine_master:create_pengine/2](#pengine_mastercreate_pengine2)
+         * [Destroy](#destroy)
+            * [destroy_response](#destroy_response)
+            * [pengine:destroy/1](#penginedestroy1)
+         * [Ask](#ask)
+            * [query_options](#query_options)
+            * [ask_response](#ask_response)
+            * [pengine:ask/3](#pengineask3)
+            * [pengine:next/1](#penginenext1)
+         * [Ping](#ping)
+            * [ping_response](#ping_response)
+            * [pengine:ping/2](#pengineping2)
+         * [Receive Pengine Output](#receive-pengine-output)
+            * [output_response](#output_response)
+         * [Respond to Pengine Prompt](#respond-to-pengine-prompt)
+            * [prompt_response](#prompt_response)
+            * [respond/2](#respond2)
+         * [pengine_master](#pengine_master)
+            * [abort/stop](#abortstop)
+               * [abort_response](#abort_response)
+               * [stop_response](#stop_response)
+               * [pengine_master:abort/1 and <code>pengine_masterstop/1</code>](#pengine_masterabort1-and-pengine_masterstop1)
+         * [list and lookup active pengines](#list-and-lookup-active-pengines)
+            * [pengine_master:list_pengines/1](#pengine_masterlist_pengines1)
+            * [pengine_master:lookup_pengine/1](#pengine_masterlookup_pengine1)
+            * [Examples](#examples)
+         * [kill all pengines](#kill-all-pengines)
+            * [pengine_master:kill_all_pengines/0](#pengine_masterkill_all_pengines0)
+         * [Errors](#errors)
+            * [error_response](#error_response)
+            * [died_response](#died_response)
+            * [Examples](#examples-1)
+      * [Examples](#examples-2)
+      * [Contribute](#contribute)
+         * [Most useful project commands](#most-useful-project-commands)
+      * [Author &amp; Maintainer](#author--maintainer)
+      * [Copyright and license](#copyright-and-license)
+
 
 ## QuickStart Usage
 
