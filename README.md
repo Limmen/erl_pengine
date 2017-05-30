@@ -49,7 +49,7 @@ Other pengine clients:
 
  **Add to rebar3 project**
 
-**TODO**: The package is published at [hex.pm](hex.pm)
+The package is published at [hex.pm](hex.pm)
 You can add  it to your project by putting the following to your list of dependencies in `rebar.config`:
  ```erlang
    {deps, [
@@ -62,7 +62,7 @@ You can add  it to your project by putting the following to your list of depende
  
  ```erlang
   {deps, [
-         {erl_pengine, {git, "https://github.com/Limmen/erl_pengine"}}
+         {erl_pengine, {git, "https://github.com/Limmen/erl_pengine", {branch, "master"}}}
   ]}.
   ```
  
