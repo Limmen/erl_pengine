@@ -11,7 +11,7 @@ For more information about the pengine project see the following links.
 
 * [http://pengines.swi-prolog.org/docs/documentation.html](http://pengines.swi-prolog.org/docs/documentation.html)
 * [http://www.swi-prolog.org/pldoc/doc_for?object=section(%27packages/pengines.html%27)](http://www.swi-prolog.org/pldoc/doc_for?object=section(%27packages/pengines.html%27))
-* [paper](paper/pengines.pdf)
+* [paper](https://arxiv.org/abs/1405.3953)
 
 EDoc link:
 
@@ -76,12 +76,12 @@ You can add  it to your project by putting the following to your list of depende
  >> Connect to prolog-pengine server at http://127.0.0.1:4000/pengine and create a slave-pengine with default create-options
   and issue queries
    ```erlang
-   %% create pengine, Pid = pid of pengine process, Id = pengine unique binary identifier.
+   %% create pengine with default options #{}, Pid = pid of pengine process, Id = pengine unique binary identifier.
    %% as default no create-query is sent upon create request
    {{ok, {Pid, Id}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", #{}).      
    
    %% Query pengine_master of list of active slave pengines
-   [{Pid, Id}] = pengine_master:list_pengines(),
+   [{Pid, Id}] = pengine_master:list_pengines().
    
    %% query pengine for a solution to member(X, [1,2]), MoreSolutions is a boolean indicating if more solutions exists.
    {success, Id, [[1]], MoreSolutions = true} = pengine:ask(Pid, "member(X, [1,2])", #{template => "[X]", chunk => "1"}).
@@ -153,6 +153,7 @@ return an error.
 
 To save one roundtrip its possible to issue a query directly upon creation of the pengine, e.g:
 ```erlang
+%% Options to be passed to pengine upon creation
 Options = #{destroy => true, application => "pengine_sandbox", chunk => 2, format => json, ask => "member(X, [1,2])", template => "[X]"}.
 
 %% Ask query upon creation, chunking the result to max chunk size 2. Pengine is destroyed after query completion.
@@ -161,11 +162,14 @@ Options = #{destroy => true, application => "pengine_sandbox", chunk => 2, forma
 ```
 It is also possible to inject prolog source-code into the pengine upon creation.
 ```erlang
+%% Options to be passed to pengine upon creation
 Options = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json, src_text => "pengine(pingu).\n"}.
 
+%% Create slave_pengine with Options and inject the source
 {{ok, {Pid, Id}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options).
 
-{success, Id1, [[<<"pingu">>]], false} = pengine:ask(P1, "pengine(X)", #{template => "[X]", chunk => "1"}).
+%% Query pengine of the injected source
+{success, Id1, [[<<"pingu">>]], MoreSolutions = false} = pengine:ask(P1, "pengine(X)", #{template => "[X]", chunk => "1"}).
 ```
 A typical example of injecting source is ofcourse to inject whole source-files or point to a source-url.
 
@@ -181,17 +185,20 @@ pengine_master(mama, pongi).
 ```
 
 ```erlang
+%% Read prolog source into binary
 {ok, File} = file:read_file("src_text.pl").
 
+%% Options to be passed to pengine upon creation
 Options = #{destroy => false, application => "pengine_sandbox", chunk => 1, format => json, src_text => File}.
 
 %% Inject prolog source upon creation
 {{ok, {Pid, Id}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", Options)
 
+%% Ask pengine a query of the injected source
 {success, Id, [[<<"pingu">>], [<<"pongi">>], [<<"pingo">>], [<<"pinga">>]], false} = 
  pengine:ask(Pid, "pengine_child(X)", #{template => "[X]", chunk => "10"}).
  
- %% It is also possible to inject source by specifying a url
+ %% It is also possible to inject source by specifying a url, just send a options like the following:
  Options = #{destroy => true, application => "pengine_sandbox", chunk => 1, format => json, src_url => "http://127.0.0.1:4000/src_url.pl"}
 ```
 ### Destroy
@@ -216,8 +223,10 @@ it the erlang process will also terminate. destroy function is typically only ne
 option `destroy=false` otherwise the pengine will destroy itself after query completion.
 
 ```erlang
+%% Create pengine with default options
 {{ok, {Pid, Id}}, {no_create_query}} = pengine_master:create_pengine("http://127.0.0.1:4000/pengine", #{}).
 
+%% destroy pengine
 {pengine_destroyed, _Reply} = pengine:destroy(Pid).
 ```
 
@@ -241,6 +250,8 @@ option `destroy=false` otherwise the pengine will destroy itself after query com
                        query_response() |
                        {output_response(), destroy_response()} |
                        output_response() |
+                       {prompt_response() | destroy_response()} |
+                       prompt_response() |
                        died_response().
 ```
 #### `pengine:ask/3`
@@ -253,7 +264,7 @@ ask(Pengine, Query, Options) ->
 The ask function takes a pengine process, a query and query options as input and will send a query request to the slave_pengine.
 ```erlang
 %% Ask pengine for one solution at a time
-{success, Id, [[1]], MoreSolutions = true} = pengine:ask(Pid, "member(X, [1,2])", #{template => "[X]", chunk => "1"})
+{success, Id, [[1]], MoreSolutions = true} = pengine:ask(Pid, "member(X, [1,2])", #{template => "[X]", chunk => "1"}).
 ```
 
 #### `pengine:next/1`
@@ -266,7 +277,8 @@ next(Pengine) ->
 The next function will ask the pengine for more solutions to the currently active query
 
 ```erlang
- {{success, Id, [[2]], MoreSolutions = false}, {pengine_destroyed, _}} = pengine:next(Pid)
+%% Ask pengine for next solution of the active query (if you call next() with no active query you'll get a protocol error)
+ {{success, Id, [[2]], MoreSolutions = false}, {pengine_destroyed, _}} = pengine:next(Pid).
 ```
 
 ### Ping
@@ -297,6 +309,7 @@ since it will let you notice as soon as a pengine is aborted and can then update
 process.
 
 ```erlang
+%% Send a single ping request to the pengine, to ping it periodically set interval > 0
 16> pengine:ping(Pid, 0).
 {ping_response,<<"bbe8836f-8eae-45d5-853e-e55ea3b92f6b">>,
                #{<<"id">> => 11,
@@ -325,12 +338,260 @@ process.
 ```
 
 ### Receive Pengine Output
+Slave-Pengines can send output back to their masters by using the prolog predicate `pengine_output/1` 
+#### `output_response`
+```erlang
+%% response to pengine-output
+-type output_response()::{{output, PrologOutput :: any()}, {pull_response, ask_response()}}.
+```
 
-### Prompt
+Example two prolog outputs from the pengine:
 
-### Abort/Stop
+```prolog
+output_test:-
+    pengine_output(output_test_success).
+    
+output_test2(done):-
+    pengine_output(output_test2_first),
+    pengine_output(output_test2_second).
+```
+
+When a slave-pengine responds with output the erl_pengine will automatically call pull_response to receive all outputs
+since there might be multiple.
+
+
+```erlang
+%% ask pengine for output_test which will just return a single output and no solution
+    {
+      {
+        output,<<"output_test_success">>
+      },
+      {
+        pull_response,
+        {
+          {
+            success,
+            Id,
+            [[]],
+            false
+          },
+          {
+            pengine_destroyed, 
+            _Reason1
+          }
+        }
+      }
+    } 
+        = pengine:ask(Pid, "output_test", #{template => "[]", chunk => "1"}).
+     
+%% ask pengine for output_test2 which will return two outputs and also a single solution 'done'.
+    {
+      {output,<<"output_test2_first">>},
+      {
+        pull_response,
+       {
+         {
+           output,<<"output_test2_second">>},
+         {
+           pull_response,
+          {
+            {
+              success,
+              Id,
+              [[<<"done">>]],
+              false
+            },
+         {
+           pengine_destroyed,
+          _Reason2
+         }
+          }
+         }
+       }
+      }
+    } 
+        = pengine:ask(Pid, "output_test2(X)", #{template => "[X]", chunk => "1"}).
+```
+
+### Respond to Pengine Prompt
+
+#### `prompt_response`
+
+```erlang
+%% response to a pengine-prompt
+-type prompt_response()::{prompt, Id :: binary(), Data :: binary()}.
+```
+#### `respond/2`
+
+```erlang
+-spec respond(pid(), list()) -> ask_response() | error_response().
+respond(Pengine, PrologTerm) ->
+ ...
+```
+
+`respond/2` lets you respond to a pengine-slave that has sent you a prompt waiting for input with the prolog predicate 
+`pengine_input/2`
+
+Example:
+
+prolog-prompt from the pengine:
+
+```prolog
+prompt_test(prompt_test_success(Input)):-
+	pengine_input(prompt_test, Input).
+```
+Response:
+```erlang
+%% Receive prompt from slave-pengine
+{prompt, Id, <<"prompt_test">>} = pengine:ask(Pid, "prompt_test(X)", #{template => "[X]", chunk => "1"}).
+
+%% Respond to prompt with prolog atom 'pengine'
+{{success, Id1, 
+      [[
+        #{
+           <<"args">> := [<<"pengine">>], 
+           <<"functor">> := <<"prompt_test_success">>
+         }
+       ]], MoreSolutions = false}, {pengine_destroyed, _Reason}} = pengine:respond(Pid, "pengine").
+```
 
 ### pengine_master
+
+#### abort/stop
+
+##### `abort_response`
+
+```erlang
+%% response to abort-request
+-type abort_response()::{aborted, Id :: binary()} |
+                        {{aborted, Id :: binary()}, destroy_response()} |
+                        died_response().
+```
+##### `stop_response`
+
+```erlang
+%% response to stop-request
+-type stop_response()::{stopped, Id :: binary()} |
+                       died_response().
+```
+
+##### `pengine_master:abort/1` and `pengine_masterstop/1`
+
+Sometimes a query to a pengine might take long time and you dont want to wait for the solution but want to interrupt
+the busy pengine and free your erlang-process which will be stuck waiting for a response.
+
+`stop/1` gently tried to ask the pengine to stop and `abort/1` terminates the pengine's query by force.
+
+```erlang
+-spec abort(binary(), string() | binary()) -> pengine:abort_response() | pengine:error_response().
+abort(Id, Server) ->
+ ...
+```
+
+```erlang
+-spec stop(binary(), string() | binary()) -> pengine:stop_response() | pengine:error_response().
+stop(Id, Server) ->
+ ...
+```
+Example: 
+
+```erlang
+%% Attempt to stop pengine-query
+    spawn(fun() -> 
+                  pengine:ask(P1, "member(X, [1,2])", #{template => "[X]", chunk => "1"})
+          end),
+    Res = pengine_master:stop(Id1, "http://127.0.0.1:4000/pengine"),
+    case Res of 
+        {stopped, Id1} -> ok;        
+        {error, Id1, _Reason, _Code} -> ok %% error if nothing to stop      
+    end.
+
+%% Abort pengine by force (should always succeed)
+    Self = self(),
+    spawn(fun() -> 
+                  {{aborted, Id1}, {pengine_destroyed, _Reason1}} = pengine:ask(P1, "long_query(X)", #{template => "[X]", chunk => "1"}),
+                  Self ! aborted
+          end),    
+    {pengine_died,_Reason} = pengine_master:abort(Id1, "http://127.0.0.1:4000/pengine"),
+    receive
+        aborted ->
+            ok    
+    end.
+```
+### list and lookup active pengines
+
+#### `pengine_master:list_pengines/1`
+
+```erlang
+-spec list_pengines() -> list().
+list_pengines()->
+```
+
+#### `pengine_master:lookup_pengine/1`
+```erlang
+-spec lookup_pengine(binary()) -> pid().
+lookup_pengine(Id)->
+```
+
+#### Examples
+
+```erlang
+%% Ask pengine_master for a list of active slave pengines.
+%% Note that the remote slave_pengines need not necessarily be active, if you dont ping the slave_pengine periodically
+%% you don't know if it has died.
+[{Pid1, Id1}, {Pid2, Id2}] = pengine_master:list_pengines()
+
+%% Pengines are identified by their Pid in erl_pengine, you can lookup a Pid given a slave_pengine Id
+Pid = pengine_master:lookup_pengine(Id)
+```
+
+### kill all pengines
+
+You can always kill pengines manually by their Pids and `pengine:destroy/1` but for convenience pengine master exports a 
+function to kill all pengines in one go (it will kill both erlang-process and the remote slave-pengine)
+
+#### `pengine_master:kill_all_pengines/0`
+
+```erlang
+-spec kill_all_pengines() -> ok.
+kill_all_pengines()->
+```
+
+```erlang
+ok = pengine_master:kill_all_pengines().
+```
+
+### Errors
+
+It happens that errors occur if the Prolog Transport Protocol (PLTP) and its associated finite-state-machine of states
+and transitions is not followed that the pengine will respond with error messages.
+
+It might also happen that you try to send a query to a pengine that is already dead.
+
+#### `error_response`
+```erlang
+%% response when pengine signaling that some error occurred
+-type error_response()::{error, Id :: binary(), Reason :: binary(), Code :: binary()}.
+```
+
+#### `died_response`
+
+```erlang
+%% response if pengine to send request to was dead before request could be handled
+-type died_response()::{pengine_died, Reason :: any()}.
+```
+
+#### Examples
+
+```erlang
+%% attempt to respond to a prompt that does'nt exist
+{error, Id2, _Reason2, <<"protocol_error">>} = pengine:respond(P2, "pengine"). %% no prompt left to respond
+```
+
+```erlang
+%% abort a pengine by force will also kill it.
+{pengine_died,_Reason2} = pengine_master:abort(Id1, "http://127.0.0.1:4000/pengine").
+```
 
 ## Examples
 
@@ -338,6 +599,7 @@ See `/examples` for two simple example projects, one project uses prolog as a co
 and the other project uses prolog as a rdf triple-store. 
 
 ```erlang
+%% solve_sudoku will create pengine with the given source and query it for a solution of the sudoku-problem specified in Src
 sudoku_solver:solve_sudoku(Src).
  [[9,8,7,6,5,4,3,2,1],
   [2,4,6,1,7,3,9,8,5],
@@ -350,6 +612,7 @@ sudoku_solver:solve_sudoku(Src).
   [8,6,3,7,4,5,2,1,9]]
  4> 
 
+%% supervises will create pengine and query it for supervises(X,Y).
  5> semweb:supervises().
  [{<<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>,
   supervises,

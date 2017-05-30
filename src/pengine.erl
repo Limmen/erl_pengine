@@ -64,6 +64,8 @@
                        query_response() |
                        {output_response(), destroy_response()} |
                        output_response() |
+                       {prompt_response() | destroy_response()} |
+                       prompt_response() |
                        died_response().
 
 %% response to a query

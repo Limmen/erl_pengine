@@ -85,7 +85,7 @@ kill_all_pengines()->
 
 %% @doc
 %% Tells a busy pengine to stop searching for solutions. Terminates the running query gracefully.
--spec stop(binary(), string()) -> pengine:stop_response() | pengine:error_response().
+-spec stop(binary(), string() | binary()) -> pengine:stop_response() | pengine:error_response().
 stop(Id, Server) ->
     lager:debug("stopping pengine ~p that is running some query"),
     gen_server:call(?SERVER, {stop, Id, Server}).
@@ -93,7 +93,7 @@ stop(Id, Server) ->
 
 %% @doc
 %% Terminates the running query of a busy pengine by force
--spec abort(binary(), string()) -> pengine:abort_response() | pengine:error_response().
+-spec abort(binary(), string() | binary()) -> pengine:abort_response() | pengine:error_response().
 abort(Id, Server) ->
     lager:debug("aborts the running query abruptely"),
     gen_server:call(?SERVER, {abort, Id, Server}).

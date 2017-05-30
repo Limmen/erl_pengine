@@ -24,5 +24,6 @@
   {maintainers, ["Kim Hammar"]},
   {licenses, ["MIT"]},
   {links, [{"Github", "https://github.com/Limmen/erl_pengine"}]},
-  {build_tools, ["rebar3"]}
+  {build_tools, ["rebar3"]},
+  {pkg_name, "erl_pengine"}
  ]}.

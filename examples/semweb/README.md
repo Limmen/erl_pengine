@@ -25,6 +25,7 @@ Start the `erl_pengine` application, since this is a erlang library we can do it
  Call the single function exported by `semweb` API `supervises/0`:
  
  ```erlang
+ %% supervises will create pengine and query it for supervises(X,Y).
 2> semweb:supervises().
 [{<<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>,
   supervises,

@@ -32,6 +32,7 @@ Start the `erl_pengine` application, since this is a erlang library we can do it
  Call the single function exported by `sudoku_solver` API `solve_sudoku/1`:
  
  ```erlang
+ %% solve_sudoku will create pengine with the given source and query it for a solution of the sudoku-problem specified in Src
  3> sudoku_solver:solve_sudoku(Src).
  [[9,8,7,6,5,4,3,2,1],
   [2,4,6,1,7,3,9,8,5],
