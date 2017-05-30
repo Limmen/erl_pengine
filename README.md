@@ -9,7 +9,8 @@
 **ErlangPengine**
 
 Erlang client to prolog pengine server.
-For more information about the pengine project see the following links.
+
+To make full use of erl_pengine you must know the general protocol, its possibilities and limitations, see the following links for more information:
 
 * [http://pengines.swi-prolog.org/docs/documentation.html](http://pengines.swi-prolog.org/docs/documentation.html)
 * [http://www.swi-prolog.org/pldoc/doc_for?object=section(%27packages/pengines.html%27)](http://www.swi-prolog.org/pldoc/doc_for?object=section(%27packages/pengines.html%27))
