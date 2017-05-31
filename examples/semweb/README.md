@@ -10,10 +10,10 @@ $ rebar3 compile
 
 Open up an erlang shell with the project loaded using `rebar3 shell`
 
-```erlang
+```bash
 $ rebar3 shell
 ===> Verifying dependencies...
-===> Compiling semweb
+===> Compiling sudoku_solver
 Eshell V8.3  (abort with ^G)
 1> 
 ```
