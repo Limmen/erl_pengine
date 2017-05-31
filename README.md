@@ -42,7 +42,7 @@ Other pengine clients:
 
 ### Useful Modules
 
-* `erl_pengine.erl`: entrypoint module, application callback module, start with `application:start(erl_pengine)`
+* `erl_pengine.erl`: entry point module, application callback module, start with `application:start(erl_pengine)`
 * `pengine.erl`: main API for a created slave-pengine
 * `pengine_master`: API for administering active pengines and also creating new ones
 
@@ -539,7 +539,7 @@ Response:
 Sometimes a query to a pengine might take long time and you dont want to wait for the solution but want to interrupt
 the busy pengine and free your erlang-process which will be stuck waiting for a response.
 
-`stop/1` gently tried to ask the pengine to stop and `abort/1` terminates the pengine's query by force.
+`stop/1` gently tries to ask the pengine to stop and `abort/1` terminates the pengine's query by force.
 
 ```erlang
 -spec abort(binary(), string() | binary()) -> pengine:abort_response() | pengine:error_response().
@@ -584,12 +584,14 @@ Example:
 ```erlang
 -spec list_pengines() -> list().
 list_pengines()->
+...
 ```
 
 #### `pengine_master:lookup_pengine/1`
 ```erlang
 -spec lookup_pengine(binary()) -> pid().
 lookup_pengine(Id)->
+...
 ```
 
 #### Examples
@@ -614,6 +616,7 @@ function to kill all pengines in one go (it will kill both erlang-process and th
 ```erlang
 -spec kill_all_pengines() -> ok.
 kill_all_pengines()->
+...
 ```
 
 ```erlang
@@ -671,21 +674,42 @@ sudoku_solver:solve_sudoku(Src).
   [8,6,3,7,4,5,2,1,9]]
  4> 
 
-%% supervises will create pengine and query it for supervises(X,Y).
- 5> semweb:supervises().
- [{<<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>,
+ %% supervises will create pengine and query it for supervises(X,Y).
+2> semweb:supervises("X", "Y").
+[{<<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>,
   supervises,
   <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine">>},
-  {<<"http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup">>,
+ {<<"http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup">>,
   supervises,
   <<"http://www.limmen.kth.se/ontologies/erl_pengine#table_mngr">>},
-  {<<"http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup">>,
+ {<<"http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup">>,
   supervises,
   <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>},
-  {<<"http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup">>,
+ {<<"http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup">>,
   supervises,
   <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_master">>}]
- 6>
+  
+3> semweb:supervises("'http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup'", "Y").
+[{"'http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup'",
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine">>}]
+  
+4> semweb:supervises("'http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup'", "Y").
+[{"'http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup'",
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#table_mngr">>},
+ {"'http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup'",
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>},
+ {"'http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup'",
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_master">>}]
+  
+5> semweb:supervises("X", "'http://www.limmen.kth.se/ontologies/erl_pengine#pengine'").
+[{<<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>,
+  supervises,
+  "'http://www.limmen.kth.se/ontologies/erl_pengine#pengine'"}]
+6> 
 ```
 
 ## Contribute

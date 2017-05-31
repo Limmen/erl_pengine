@@ -22,11 +22,11 @@ Start the `erl_pengine` application, since this is a erlang library we can do it
  ```erlang
  application:ensure_all_started(erl_pengine). 
  ```
- Call the single function exported by `semweb` API `supervises/0`:
+ Call the single function exported by `semweb` API `supervises/2`:
  
  ```erlang
  %% supervises will create pengine and query it for supervises(X,Y).
-2> semweb:supervises().
+2> semweb:supervises("X", "Y").
 [{<<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>,
   supervises,
   <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine">>},
@@ -39,7 +39,28 @@ Start the `erl_pengine` application, since this is a erlang library we can do it
  {<<"http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup">>,
   supervises,
   <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_master">>}]
-3> 
+  
+3> semweb:supervises("'http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup'", "Y").
+[{"'http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup'",
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine">>}]
+  
+4> semweb:supervises("'http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup'", "Y").
+[{"'http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup'",
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#table_mngr">>},
+ {"'http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup'",
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>},
+ {"'http://www.limmen.kth.se/ontologies/erl_pengine#erl_pengine_sup'",
+  supervises,
+  <<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_master">>}]
+  
+5> semweb:supervises("X", "'http://www.limmen.kth.se/ontologies/erl_pengine#pengine'").
+[{<<"http://www.limmen.kth.se/ontologies/erl_pengine#pengine_sup">>,
+  supervises,
+  "'http://www.limmen.kth.se/ontologies/erl_pengine#pengine'"}]
+6> 
  ```
  
  Stopping:
