@@ -1,4 +1,4 @@
-# erl_pengine (v0.1.0)
+# erl_pengine (v0.1.1)
 
 [![Build Status](https://travis-ci.org/Limmen/erl_pengine.svg?branch=master)](https://travis-ci.org/Limmen/erl_pengine.svg?branch=master)
 
@@ -48,7 +48,7 @@ Other pengine clients:
 
 ## Table of Contents
 
-   * [erl_pengine (v0.1.0)](#erl_pengine-v010)
+   * [erl_pengine (v0.1.1)](#erl_pengine-v011)
       * [Overview](#overview)
          * [Features](#features)
          * [Useful Modules](#useful-modules)
@@ -105,7 +105,7 @@ The package is published at [hex.pm](https://hex.pm/)
 You can add  it to your project by putting the following to your list of dependencies in `rebar.config`:
  ```erlang
    {deps, [
-          {erl_pengine, "0.1.0"}
+          {erl_pengine, "0.1.1"}
    ]}.
 
  ```
