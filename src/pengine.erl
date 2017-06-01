@@ -182,25 +182,25 @@ handle_call({id}, _From, State) ->
 
 handle_call({ask, Query, Options}, _From, State) ->
     Send = "ask((" ++ Query ++ "), " ++ options_to_list(Options) ++ ")",
-    {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, Send, "json"),
+    Res = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, Send, "json"),
     process_response(Res, State, {});
 
 handle_call({next}, _From, State) ->
-    {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "next", "json"),
+    Res = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "next", "json"),
     process_response(Res, State, {});
 
 handle_call({respond, PrologTerm}, _From, State) ->
     Send = "input((" ++ PrologTerm ++ "))",
-    {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, Send, "json"),
+    Res = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, Send, "json"),
     process_response(Res, State, {});
 
 handle_call({destroy}, _From, State) ->
-    {ok, Res} = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "destroy", "json"),
+    Res = pengine_pltp_http:send(State#pengine_state.id, State#pengine_state.server, "destroy", "json"),
     process_response(Res, State, {});
 
 handle_call({ping, 0}, _From, State) ->
     erlang:cancel_timer(State#pengine_state.ping_timer),
-    {ok, Res} = pengine_pltp_http:ping(State#pengine_state.id, State#pengine_state.server, "json"),
+    Res = pengine_pltp_http:ping(State#pengine_state.id, State#pengine_state.server, "json"),
     process_response(Res, State, {});
 
 handle_call({ping, Interval}, _From, State) when Interval > 0 ->
@@ -224,7 +224,7 @@ handle_cast(_Msg, State) ->
 %% Handling all non call/cast messages
 -spec handle_info(timeout | term(), pengine_state()) -> {noreply, pengine_state()}.
 handle_info({ping_timeout, Interval}, State) ->
-    {ok, Res} = pengine_pltp_http:ping(State#pengine_state.id, State#pengine_state.server, "json"),
+    Res = pengine_pltp_http:ping(State#pengine_state.id, State#pengine_state.server, "json"),
     case ping_verdict(Res) of
         true ->
             erlang:cancel_timer(State#pengine_state.ping_timer),
@@ -260,11 +260,19 @@ code_change(_OldVsn, State, _Extra) ->
 %% @doc
 %% @private
 %% process response to sent request
--spec process_response(map(), pengine_state() | pengine_master:master_state(), tuple()) ->
+-spec process_response({ok, map()} | {error, any()} | map(), pengine_state() | pengine_master:master_state(), tuple()) ->
                               {reply, response(), pengine_state()} |
                               {stop, Reason::any(), response(), pengine_state()} |
                               {reply, response(), pengine_master:master_state()} |
                               {stop, Reason::any(), response(), pengine_master:master_state()}.
+
+process_response({ok, Res}, State, Args)->
+    process_response(Res, State, Args);
+
+process_response(Error = {error, _Res}, State, _)->
+    Reply = {Error, "Connection with pengine server could not be established, terminating pengine-process"},
+    Reason = normal,
+    {stop, Reason, Reply, State};
 
 process_response(Res = #{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">> := SlaveLimit},
                  State, {create, TableId, Server})->
@@ -317,7 +325,7 @@ process_response(#{<<"event">> := <<"success">>, <<"id">> := Id, <<"data">> := D
     {reply, Reply, State};
 
 process_response(#{<<"event">> := <<"output">>, <<"id">> := Id, <<"data">> := Output}, State, _)->
-    {ok, Res} = pengine_pltp_http:pull_response(Id, State#pengine_state.server, "json"),
+    Res = pengine_pltp_http:pull_response(Id, State#pengine_state.server, "json"),
     PullResponse = process_response(Res, State, {}),
     case PullResponse of
         {stop, Reason, Reply, State1} ->
@@ -389,7 +397,14 @@ get_create_query(_, State) ->
 %% @doc
 %% @private
 %% utility function that checks based on ping if pengine should be considered dead.
--spec ping_verdict(map()) -> boolean().
+-spec ping_verdict({ok, map()} | {error, any()} | map()) -> boolean().
+
+ping_verdict({ok, Res})->
+    ping_verdict(Res);
+
+ping_verdict({error, _})->
+    false;
+
 ping_verdict(#{<<"event">> := <<"ping">>})->
     true;
 ping_verdict(#{<<"event">> := D}) when D =/= <<"ping">> ->

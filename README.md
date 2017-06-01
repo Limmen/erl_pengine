@@ -669,6 +669,17 @@ is violated. Another source of error is for example if you try to query a slave-
 {pengine_died,_Reason2} = pengine_master:abort(Id1, "http://127.0.0.1:4000/pengine").
 ```
 
+`econnrefused`, connection to pengine server was lost:
+
+```erlang
+1> pengine_master:create_pengine("http://127.0.0.1:4000/pengine", #{}).
+{{error,econnrefused},
+ "Connection with pengine server could not be established, terminating pengine-process"}
+ 
+2> pengine:ask(P1, "member(X, [1,2])", #{template => "[X]", chunk => "1"}).
+{{error,econnrefused},
+ "Connection with pengine server could not be established, terminating pengine-process"}
+```
 ## Examples
 
 See `/examples` for two simple example projects, one project uses prolog as a constraint-solver for the sudoku-problem 

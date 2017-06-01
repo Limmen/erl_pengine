@@ -114,8 +114,9 @@ init([]) ->
 handle_call({create, Server, CreateOptions}, _From, State) ->
     cleanup_pengines(State#master_state.table_id),
     Opts = maps:fold(fun(K, V, S) -> S#{K => V}  end, default_create_options(), CreateOptions),
-    {ok, Res} = pengine_pltp_http:create(Server, Opts),
-    pengine:process_response(Res, State, {create, State#master_state.table_id, Server});
+    Res = pengine_pltp_http:create(Server, Opts),
+    {Reply, State1} = process_reply(pengine:process_response(Res, State, {create, State#master_state.table_id, Server})),
+    {reply, Reply, State1};
 
 handle_call({list_pengines}, _From, State) ->
     cleanup_pengines(State#master_state.table_id),
@@ -128,12 +129,14 @@ handle_call({kill_all_pengines}, _From, State) ->
     {reply, ok, State};
 
 handle_call({stop, Id, Server}, _From, State) ->
-    {ok, Res} = pengine_pltp_http:send(Id, Server, "stop", "json"),
-    pengine:process_response(Res, State, {});
+    Res = pengine_pltp_http:send(Id, Server, "stop", "json"),
+    {Reply, State1} = process_reply(pengine:process_response(Res, State, {})),
+    {reply, Reply, State1};
 
 handle_call({abort, Id, Server}, _From, State) ->
-    {ok, Res} = pengine_pltp_http:abort(Id, Server, "json"),
-    pengine:process_response(Res, State, {});
+    Res = pengine_pltp_http:abort(Id, Server, "json"),
+    {Reply, State1} = process_reply(pengine:process_response(Res, State, {})),
+    {reply, Reply, State1};
 
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -209,3 +212,12 @@ kill_all_pengines(TableId)->
               end, ets:tab2list(TableId)),
     ets:delete_all_objects(TableId),
     ok.
+
+
+%% @private
+%% @doc
+%% helper function to extract reply+state.
+process_reply({stop, _, Reply, State})->
+    {Reply, State};
+process_reply({reply, Reply, State}) ->
+    {Reply, State}.
