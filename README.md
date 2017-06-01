@@ -101,7 +101,7 @@ Other pengine clients:
 
  **Add to rebar3 project**
 
-The package is published at [hex.pm](hex.pm)
+The package is published at [hex.pm](https://hex.pm/)
 You can add  it to your project by putting the following to your list of dependencies in `rebar.config`:
  ```erlang
    {deps, [
@@ -201,7 +201,7 @@ create_pengine(Server, CreateOptions) ->
 ```
 
 The pengine server can specify the max number of pengines a single client is allowed to create. This is not enforced by 
-the server, it's up to the client implementation so its more of a "hint" by the server. This is however enforced by erl_pengine
+the server, it's up to the client implementation so its more of a "hint" by the server. This is however enforced by `erl_pengine`
 if you try to create a pengine whilst having more than the max-limit number of active pengines it will destroy the pengine and
 return an error. 
 
@@ -225,7 +225,7 @@ Options = #{destroy => false, application => "pengine_sandbox", chunk => 1, form
 %% Query pengine of the injected source
 {success, Id1, [[<<"pingu">>]], MoreSolutions = false} = pengine:ask(P1, "pengine(X)", #{template => "[X]", chunk => "1"}).
 ```
-A typical example of injecting source is ofcourse to inject whole source-files or point to a source-url.
+A typical example of injecting source is of course to inject whole source-files or point to a source-url.
 
 `src_text.pl`:
 ``` prolog
@@ -237,6 +237,8 @@ pengine_child(pinga).
 pengine_master(papa, pingu).
 pengine_master(mama, pongi).
 ```
+
+Creating pengine injected with the source from `src_text.pl`:
 
 ```erlang
 %% Read prolog source into binary
@@ -272,9 +274,9 @@ destroy(Pengine) ->
  ...
 ```
 
-destroy function takes a pid of a pengine process and sends a request to the prolog server to destroy the pengine and then
-it the erlang process will also terminate. destroy function is typically only necessary if the pengine was created with
-option `destroy=false` otherwise the pengine will destroy itself after query completion.
+The `destroy/1` function takes a pid of a erlang process representing the slave-pengine and sends a request to the prolog server to destroy the slave-pengine and 
+once that is done the erlang process will also terminate. The destroy function is typically only necessary if the pengine was created with
+option `destroy=false` otherwise the slave-pengine will destroy itself after query completion and so will the erlang-process.
 
 ```erlang
 %% Create pengine with default options
@@ -320,7 +322,7 @@ option `destroy=false` otherwise the pengine will destroy itself after query com
 ask(Pengine, Query, Options) ->
  ...
 ```
-The ask function takes a pengine process, a query and query options as input and will send a query request to the slave_pengine.
+The `ask/3` function takes a pengine process, a query and query-options as input and will send a query request to the slave_pengine.
 ```erlang
 %% Ask pengine for one solution at a time
 {success, Id, [[1]], MoreSolutions = true} = pengine:ask(Pid, "member(X, [1,2])", #{template => "[X]", chunk => "1"}).
@@ -333,7 +335,7 @@ The ask function takes a pengine process, a query and query options as input and
 next(Pengine) ->
 ...
 ```
-The next function will ask the pengine for more solutions to the currently active query
+The `next/1` function will ask the pengine for more solutions to the currently active query
 
 ```erlang
 %% Ask pengine for next solution of the active query (if you call next() with no active query you'll get a protocol error)
@@ -365,7 +367,8 @@ If Interval = 0, send a single ping. If Interval > 0, set/change periodic ping e
 Slave-pengines are destroyed by the server after ~5min to avoid runaway computations and stacking up pengines.
 Periodic pinging of a slave-pengine is a way to have the state of active pengines of `pengine_master` more up to date
 since it will let you notice as soon as a pengine is aborted and can then update the state and terminate also the erlang
-process.
+process (by default there is no open connection between pengine-slaves and their masters after query completion/creation and 
+pengine-slaves will not notify the master upon abortion).
 
 ```erlang
 %% Send a single ping request to the pengine, to ping it periodically set interval > 0
@@ -516,6 +519,8 @@ Response:
 
 ### pengine_master
 
+`pengine_master` manages active pengines and contains some useful utility functions.
+
 #### abort/stop
 
 ##### `abort_response`
@@ -625,10 +630,8 @@ ok = pengine_master:kill_all_pengines().
 
 ### Errors
 
-It happens that errors occur if the Prolog Transport Protocol (PLTP) and its associated finite-state-machine of states
-and transitions is not followed that the pengine will respond with error messages.
-
-It might also happen that you try to send a query to a pengine that is already dead.
+A common source of error from the pengien is if the Prolog Transport Protocol (PLTP) and its associated finite state machine and transitions
+is violated. Another source of error is for example if you try to query a slave-pengine with a specified ID and that slave-pengine does not exist anymore.
 
 #### `error_response`
 ```erlang
@@ -645,11 +648,22 @@ It might also happen that you try to send a query to a pengine that is already d
 
 #### Examples
 
+`protocol_error`:
 ```erlang
 %% attempt to respond to a prompt that does'nt exist
 {error, Id2, _Reason2, <<"protocol_error">>} = pengine:respond(P2, "pengine"). %% no prompt left to respond
 ```
 
+`existence_error`:
+```erlang
+ %% send request to slave-pengine which has already terminated.
+3 > pengine:destroy(Pid).
+{error,<<"f1d9eeb1-889b-4ae5-969c-aa3d83fafdd4">>,
+       <<"pengine `'f1d9eeb1-889b-4ae5-969c-aa3d83fafdd4'' does not exist">>,
+       <<"existence_error">>}
+```
+
+`pengine_died` as a result of request:
 ```erlang
 %% abort a pengine by force will also kill it.
 {pengine_died,_Reason2} = pengine_master:abort(Id1, "http://127.0.0.1:4000/pengine").
