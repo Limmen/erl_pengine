@@ -272,7 +272,7 @@ process_response({ok, Res}, State, Args)->
 process_response(Error = {error, _Res}, State, _)->
     Reply = {Error, "Connection with pengine server could not be established, terminating pengine-process"},
     Reason = normal,
-    {stop, Reason, Reply, State};
+    {stop, Reason, {error, Reply}, State};
 
 process_response(Res = #{<<"event">> := <<"create">>, <<"id">> := Id, <<"slave_limit">> := SlaveLimit},
                  State, {create, TableId, Server})->
