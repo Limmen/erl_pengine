@@ -78,8 +78,8 @@ create(Server, Options) ->
     Options1 = options_to_binary(Options),
     URL = list_to_binary(Server ++ "/create"),
     io:format("Create test \n"),
-    io:format("URL: ~s\n", [URL]),
-    io:format("URL: ~p\n", [Options1]),
+    io:format("URL: ~p\n", [URL]),
+    io:format("Options: ~p\n", [Options1]),
     case hackney:post(URL, [json_content_type(), json_accept_header()], options_to_json(Options1), []) of
         {ok, _StatusCode, _Headers, ClientRef} ->
             {ok, Body} = hackney:body(ClientRef),
